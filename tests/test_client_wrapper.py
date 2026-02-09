@@ -553,7 +553,9 @@ class TestHealthCheck:
         """health_check returns False when agent card fetch fails."""
         from unittest.mock import AsyncMock
 
-        client_wrapper.get_agent_card = AsyncMock(side_effect=Exception("Connection failed"))
+        client_wrapper.get_agent_card = AsyncMock(
+            side_effect=Exception("Connection failed")
+        )
         result = await client_wrapper.health_check()
         assert result is False
 
@@ -591,9 +593,9 @@ class TestFileOperations:
     @pytest.mark.asyncio
     async def test_download_file_with_save_path(self):
         """download_file saves to specified path."""
-        from unittest.mock import AsyncMock, MagicMock, patch
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
+        from unittest.mock import AsyncMock, MagicMock, patch
 
         file_content = b"test file content"
 
@@ -611,7 +613,9 @@ class TestFileOperations:
 
             with tempfile.TemporaryDirectory() as tmpdir:
                 save_path = str(Path(tmpdir) / "downloaded_file.pdf")
-                result = await A2AClientWrapper.download_file("http://example.com/file.pdf", save_path)
+                result = await A2AClientWrapper.download_file(
+                    "http://example.com/file.pdf", save_path
+                )
 
                 assert result == file_content
                 assert Path(save_path).exists()
@@ -641,9 +645,11 @@ class TestMessageErrorHandling:
     @pytest.mark.asyncio
     async def test_send_message_error_response(self, client_wrapper):
         """send_message raises appropriate exception on error response."""
-        from a2a.types import JSONRPCError, JSONRPCErrorResponse
-        from langchain_a2a_adapters.exceptions import A2AProtocolError
         from unittest.mock import AsyncMock, MagicMock
+
+        from a2a.types import JSONRPCError, JSONRPCErrorResponse
+
+        from langchain_a2a_adapters.exceptions import A2AProtocolError
 
         # Create a proper JSONRPCErrorResponse
         error = JSONRPCError(code=-32003, message="Invalid request")
@@ -660,7 +666,6 @@ class TestMessageErrorHandling:
     @pytest.mark.asyncio
     async def test_stream_message_error_handling(self, client_wrapper):
         """stream_message handles streaming errors."""
-        from unittest.mock import AsyncMock
 
         async def mock_stream_error(*args, **kwargs):
             if False:
@@ -729,9 +734,11 @@ class TestTaskOperationsErrorHandling:
     @pytest.mark.asyncio
     async def test_get_task_error_response(self, client_wrapper):
         """get_task raises appropriate exception on error."""
-        from a2a.types import JSONRPCError, JSONRPCErrorResponse
-        from langchain_a2a_adapters.exceptions import A2ATaskNotFoundError
         from unittest.mock import AsyncMock, MagicMock
+
+        from a2a.types import JSONRPCError, JSONRPCErrorResponse
+
+        from langchain_a2a_adapters.exceptions import A2ATaskNotFoundError
 
         error = JSONRPCError(code=-32001, message="Task not found")  # Task not found
         error_response = JSONRPCErrorResponse(jsonrpc="2.0", error=error, id="123")
@@ -747,11 +754,15 @@ class TestTaskOperationsErrorHandling:
     @pytest.mark.asyncio
     async def test_cancel_task_error_response(self, client_wrapper):
         """cancel_task raises appropriate exception on error."""
-        from a2a.types import JSONRPCError, JSONRPCErrorResponse
-        from langchain_a2a_adapters.exceptions import A2ATaskNotCancelableError
         from unittest.mock import AsyncMock, MagicMock
 
-        error = JSONRPCError(code=-32002, message="Cannot cancel task")  # Task not cancelable
+        from a2a.types import JSONRPCError, JSONRPCErrorResponse
+
+        from langchain_a2a_adapters.exceptions import A2ATaskNotCancelableError
+
+        error = JSONRPCError(
+            code=-32002, message="Cannot cancel task"
+        )  # Task not cancelable
         error_response = JSONRPCErrorResponse(jsonrpc="2.0", error=error, id="123")
 
         response = MagicMock()

@@ -766,7 +766,9 @@ class TestA2ARunnableCallbacks:
         with patch(
             "langchain_a2a_adapters.runnable.AsyncCallbackManagerForChainRun"
         ) as MockCallbackManager:
-            MockCallbackManager.get_noop_manager = Mock(return_value=mock_callback_manager)
+            MockCallbackManager.get_noop_manager = Mock(
+                return_value=mock_callback_manager
+            )
             MockCallbackManager.configure = Mock(
                 return_value=AsyncMock(
                     on_chain_start=AsyncMock(return_value=mock_callback_manager)
@@ -774,7 +776,11 @@ class TestA2ARunnableCallbacks:
             )
 
             # Call with callback config
-            config = {"callbacks": [Mock()], "tags": ["test"], "metadata": {"test": True}}
+            config = {
+                "callbacks": [Mock()],
+                "tags": ["test"],
+                "metadata": {"test": True},
+            }
             result = await runnable.ainvoke("query", config=config)
 
             assert result == expected_result
@@ -924,7 +930,11 @@ class TestA2ARunnableToolErrorHandling:
             status="completed",
             context_id="ctx1",
             files=[
-                {"name": "result.pdf", "mime_type": "application/pdf", "uri": "s3://..."},
+                {
+                    "name": "result.pdf",
+                    "mime_type": "application/pdf",
+                    "uri": "s3://...",
+                },
                 {"name": "data.json", "bytes": b"..."},
             ],
         )

@@ -8,41 +8,36 @@ updates:
       interval: "weekly"
       day: "sunday"
 
-    # Keep Conventional Commit style (good for semantic-release)
     commit-message:
       prefix: "build(deps)"
       prefix-development: "build(deps-dev)"
-      include: "scope"
+      include: "none"
 
     labels:
       - "dependencies"
       - "uv"
 
-    # Group low-risk updates together
     groups:
       python-runtime-deps:
         dependency-type: "production"
-        update-types:
-          - "minor"
-          - "patch"
+        update-types: ["minor", "patch"]
       python-dev-deps:
         dependency-type: "development"
-        update-types:
-          - "minor"
-          - "patch"
+        update-types: ["minor", "patch"]
 
-    # Optional: limit noise
     open-pull-requests-limit: 10
 
-  # --- GitHub Actions (optional but recommended) ---
+  # --- GitHub Actions ---
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "sunday"
+
     commit-message:
       prefix: "build(deps)"
-      include: "scope"
+      include: "none"
+
     labels:
       - "dependencies"
       - "github-actions"

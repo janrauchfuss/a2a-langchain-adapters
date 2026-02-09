@@ -1,0 +1,44 @@
+name: Coverage Upload
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        type: string
+        required: false
+        default: "coverage-xml"
+      coverage-file:
+        type: string
+        required: false
+        default: "coverage.xml"
+    secrets:
+      DEEPSOURCE_DSN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  upload-coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (required for commit OID / HEAD)
+        uses: actions/checkout@v4
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+
+      - name: Install DeepSource CLI
+        run: curl -sSL https://deepsource.io/cli | sh
+
+      - name: Upload coverage to DeepSource
+        env:
+          DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
+        run: |
+          ./bin/deepsource report \
+            --analyzer test-coverage \
+            --key python \
+            --value-file "${{ inputs.coverage-file }}"

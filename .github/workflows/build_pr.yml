@@ -31,24 +31,7 @@ jobs:
       python-version: "3.13"
 
   coverage:
-    name: Upload coverage to DeepSource
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/_coverage.yml
     needs: [lint, test, build]
-
-    steps:
-      - name: Download coverage artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-xml
-
-      - name: Install DeepSource CLI
-        run: curl -sSL https://deepsource.io/cli | sh
-
-      - name: Upload coverage
-        env:
-          DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
-        run: |
-          ./bin/deepsource report \
-            --analyzer test-coverage \
-            --key python \
-            --value-file coverage.xml
+    secrets:
+      DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}

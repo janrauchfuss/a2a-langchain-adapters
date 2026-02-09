@@ -530,3 +530,234 @@ class TestClose:
         """Closing twice doesn't raise."""
         await client_wrapper.close()
         await client_wrapper.close()
+
+
+# ============================================================================
+# Test Coverage Gap Coverage - Health check
+# ============================================================================
+
+
+class TestHealthCheck:
+    @pytest.mark.asyncio
+    async def test_health_check_success(self, client_wrapper):
+        """health_check returns True when agent card is fetched successfully."""
+        from unittest.mock import AsyncMock
+
+        client_wrapper.get_agent_card = AsyncMock()
+        result = await client_wrapper.health_check()
+        assert result is True
+        client_wrapper.get_agent_card.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_health_check_failure(self, client_wrapper):
+        """health_check returns False when agent card fetch fails."""
+        from unittest.mock import AsyncMock
+
+        client_wrapper.get_agent_card = AsyncMock(side_effect=Exception("Connection failed"))
+        result = await client_wrapper.health_check()
+        assert result is False
+
+
+# ============================================================================
+# Test Coverage Gap Coverage - File operations
+# ============================================================================
+
+
+class TestFileOperations:
+    @pytest.mark.asyncio
+    async def test_download_file_success(self):
+        """download_file downloads and saves file."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        file_content = b"test file content"
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_response = MagicMock()
+            mock_response.content = file_content
+            mock_response.raise_for_status = MagicMock()
+
+            mock_client = AsyncMock()
+            mock_client.get = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+
+            MockClient.return_value = mock_client
+
+            result = await A2AClientWrapper.download_file("http://example.com/file.pdf")
+
+            assert result == file_content
+            mock_client.get.assert_called_once_with("http://example.com/file.pdf")
+
+    @pytest.mark.asyncio
+    async def test_download_file_with_save_path(self):
+        """download_file saves to specified path."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from pathlib import Path
+        import tempfile
+
+        file_content = b"test file content"
+
+        with patch("httpx.AsyncClient") as MockClient:
+            mock_response = MagicMock()
+            mock_response.content = file_content
+            mock_response.raise_for_status = MagicMock()
+
+            mock_client = AsyncMock()
+            mock_client.get = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+
+            MockClient.return_value = mock_client
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                save_path = str(Path(tmpdir) / "downloaded_file.pdf")
+                result = await A2AClientWrapper.download_file("http://example.com/file.pdf", save_path)
+
+                assert result == file_content
+                assert Path(save_path).exists()
+                assert Path(save_path).read_bytes() == file_content
+
+    def test_decode_file_bytes_success(self):
+        """decode_file_bytes decodes base64 content."""
+        import base64
+
+        file_data = {"name": "test.txt", "bytes": base64.b64encode(b"content").decode()}
+        result = A2AClientWrapper.decode_file_bytes(file_data)
+        assert result == b"content"
+
+    def test_decode_file_bytes_missing_bytes_field(self):
+        """decode_file_bytes raises ValueError if no bytes field."""
+        file_data = {"name": "test.txt", "uri": "http://example.com/file"}
+        with pytest.raises(ValueError, match="no 'bytes' field"):
+            A2AClientWrapper.decode_file_bytes(file_data)
+
+
+# ============================================================================
+# Test Coverage Gap Coverage - Message/stream error handling
+# ============================================================================
+
+
+class TestMessageErrorHandling:
+    @pytest.mark.asyncio
+    async def test_send_message_error_response(self, client_wrapper):
+        """send_message raises appropriate exception on error response."""
+        from a2a.types import JSONRPCError, JSONRPCErrorResponse
+        from langchain_a2a_adapters.exceptions import A2AProtocolError
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Create a proper JSONRPCErrorResponse
+        error = JSONRPCError(code=-32003, message="Invalid request")
+        error_response = JSONRPCErrorResponse(jsonrpc="2.0", error=error, id="123")
+
+        response = MagicMock()
+        response.root = error_response
+
+        client_wrapper._a2a_client.send_message = AsyncMock(return_value=response)
+
+        with pytest.raises(A2AProtocolError):
+            await client_wrapper.send_message("query")
+
+    @pytest.mark.asyncio
+    async def test_stream_message_error_handling(self, client_wrapper):
+        """stream_message handles streaming errors."""
+        from unittest.mock import AsyncMock
+
+        async def mock_stream_error(*args, **kwargs):
+            if False:
+                yield  # This makes it an async generator
+            raise Exception("Stream error")
+
+        client_wrapper._a2a_client.send_message_streaming = mock_stream_error
+
+        with pytest.raises(Exception, match="Stream error"):
+            async for _ in client_wrapper.stream_message("query"):
+                pass
+
+
+# ============================================================================
+# Test Coverage Gap Coverage - Task operations error handling
+# ============================================================================
+
+
+class TestInputModeValidation:
+    """Tests for input mode validation in message building."""
+
+    @pytest.mark.asyncio
+    async def test_send_message_with_data_validates_modes(self, client_wrapper):
+        """send_message validates input modes when sending DataPart."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        # Mock successful response
+        response = MagicMock()
+        response.root = MagicMock()
+        response.root.result = MagicMock()
+        response.root.result.context_id = "ctx1"
+        response.root.result.parts = []
+
+        client_wrapper._a2a_client.send_message = AsyncMock(return_value=response)
+
+        with patch.object(client_wrapper, "_check_input_modes") as mock_check:
+            # Send dict with data key
+            await client_wrapper.send_message({"data": {"key": "value"}})
+
+            # Verify input mode check was called
+            mock_check.assert_called_with(["application/json"])
+
+    @pytest.mark.asyncio
+    async def test_send_message_with_multiple_data_items(self, client_wrapper):
+        """send_message handles multiple data items in list."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        response = MagicMock()
+        response.root = MagicMock()
+        response.root.result = MagicMock()
+        response.root.result.context_id = "ctx1"
+        response.root.result.parts = []
+
+        client_wrapper._a2a_client.send_message = AsyncMock(return_value=response)
+
+        with patch.object(client_wrapper, "_check_input_modes"):
+            # Send dict with data as list
+            await client_wrapper.send_message(
+                {"text": "text content", "data": [{"item": 1}, {"item": 2}]}
+            )
+
+            client_wrapper._a2a_client.send_message.assert_called_once()
+
+
+class TestTaskOperationsErrorHandling:
+    @pytest.mark.asyncio
+    async def test_get_task_error_response(self, client_wrapper):
+        """get_task raises appropriate exception on error."""
+        from a2a.types import JSONRPCError, JSONRPCErrorResponse
+        from langchain_a2a_adapters.exceptions import A2ATaskNotFoundError
+        from unittest.mock import AsyncMock, MagicMock
+
+        error = JSONRPCError(code=-32001, message="Task not found")  # Task not found
+        error_response = JSONRPCErrorResponse(jsonrpc="2.0", error=error, id="123")
+
+        response = MagicMock()
+        response.root = error_response
+
+        client_wrapper._a2a_client.get_task = AsyncMock(return_value=response)
+
+        with pytest.raises(A2ATaskNotFoundError):
+            await client_wrapper.get_task("nonexistent-task")
+
+    @pytest.mark.asyncio
+    async def test_cancel_task_error_response(self, client_wrapper):
+        """cancel_task raises appropriate exception on error."""
+        from a2a.types import JSONRPCError, JSONRPCErrorResponse
+        from langchain_a2a_adapters.exceptions import A2ATaskNotCancelableError
+        from unittest.mock import AsyncMock, MagicMock
+
+        error = JSONRPCError(code=-32002, message="Cannot cancel task")  # Task not cancelable
+        error_response = JSONRPCErrorResponse(jsonrpc="2.0", error=error, id="123")
+
+        response = MagicMock()
+        response.root = error_response
+
+        client_wrapper._a2a_client.cancel_task = AsyncMock(return_value=response)
+
+        with pytest.raises(A2ATaskNotCancelableError):
+            await client_wrapper.cancel_task("running-task")

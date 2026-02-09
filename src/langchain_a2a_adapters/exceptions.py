@@ -45,8 +45,6 @@ class A2AConnectionError(A2AAdapterError):
     **Retryable:** Yes - typically a transient issue.
     """
 
-    pass
-
 
 class A2ATimeoutError(A2AAdapterError):
     """Request to A2A agent timed out.
@@ -56,8 +54,6 @@ class A2ATimeoutError(A2AAdapterError):
 
     **Retryable:** Yes - likely a transient issue.
     """
-
-    pass
 
 
 class A2AProtocolError(A2AAdapterError):
@@ -104,8 +100,6 @@ class A2ATaskNotFoundError(A2AProtocolError):
     **Retryable:** No - the task is permanently not found.
     """
 
-    pass
-
 
 class A2ATaskNotCancelableError(A2AProtocolError):
     """Task cannot be canceled in its current state (code -32002).
@@ -115,8 +109,6 @@ class A2ATaskNotCancelableError(A2AProtocolError):
 
     **Retryable:** No - the task state is final.
     """
-
-    pass
 
 
 class A2AUnsupportedOperationError(A2AProtocolError):
@@ -129,8 +121,6 @@ class A2AUnsupportedOperationError(A2AProtocolError):
     **Retryable:** No - the agent will never support this operation.
     """
 
-    pass
-
 
 class A2AContentTypeError(A2AProtocolError):
     """Content type not supported by the A2A agent (code -32005).
@@ -141,8 +131,6 @@ class A2AContentTypeError(A2AProtocolError):
 
     **Retryable:** No - the agent configuration is fixed.
     """
-
-    pass
 
 
 class A2AAuthRequiredError(A2AAdapterError):
@@ -156,8 +144,6 @@ class A2AAuthRequiredError(A2AAdapterError):
     **Retryable:** No - requires user intervention to provide credentials.
     """
 
-    pass
-
 
 class A2ACapabilityError(A2AAdapterError):
     """A2A agent does not advertise a required capability.
@@ -169,8 +155,6 @@ class A2ACapabilityError(A2AAdapterError):
 
     **Retryable:** No - the agent configuration is fixed.
     """
-
-    pass
 
 
 # Error code mapping for JSON-RPC error responses

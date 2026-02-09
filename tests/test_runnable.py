@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -776,12 +777,12 @@ class TestA2ARunnableCallbacks:
             )
 
             # Call with callback config
-            config = {
+            config: dict[str, Any] = {
                 "callbacks": [Mock()],
                 "tags": ["test"],
                 "metadata": {"test": True},
             }
-            result = await runnable.ainvoke("query", config=config)
+            result = await runnable.ainvoke("query", config=config)  # type: ignore[arg-type]
 
             assert result == expected_result
             client_wrapper.send_message.assert_called_once()

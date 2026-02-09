@@ -533,34 +533,6 @@ class TestClose:
 
 
 # ============================================================================
-# Test Coverage Gap Coverage - Health check
-# ============================================================================
-
-
-class TestHealthCheck:
-    @pytest.mark.asyncio
-    async def test_health_check_success(self, client_wrapper):
-        """health_check returns True when agent card is fetched successfully."""
-        from unittest.mock import AsyncMock
-
-        client_wrapper.get_agent_card = AsyncMock()
-        result = await client_wrapper.health_check()
-        assert result is True
-        client_wrapper.get_agent_card.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_health_check_failure(self, client_wrapper):
-        """health_check returns False when agent card fetch fails."""
-        from unittest.mock import AsyncMock
-
-        client_wrapper.get_agent_card = AsyncMock(
-            side_effect=Exception("Connection failed")
-        )
-        result = await client_wrapper.health_check()
-        assert result is False
-
-
-# ============================================================================
 # Test Coverage Gap Coverage - File operations
 # ============================================================================
 

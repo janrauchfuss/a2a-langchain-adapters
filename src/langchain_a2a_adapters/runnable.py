@@ -162,9 +162,9 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
         """
         return A2ARunnable(self._client, context_id=context_id)
 
-    async def ainvoke(  # skipcq: PYL-R0201, PYL-W0622
+    async def ainvoke(
         self,
-        input: A2AInput,
+        input: A2AInput,  # skipcq: PYL-R0201, PYL-W0622
         config: RunnableConfig | None = None,
         *,
         files: list[tuple[str, bytes, str]] | None = None,
@@ -215,9 +215,9 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
         card = self._client.agent_card
         return f"A2ARunnable({card.name})" if card else "A2ARunnable"
 
-    def invoke(  # skipcq: PYL-R0201, PYL-W0622
+    def invoke(
         self,
-        input: A2AInput,
+        input: A2AInput,  # skipcq: PYL-R0201, PYL-W0622
         config: RunnableConfig | None = None,
         *,
         files: list[tuple[str, bytes, str]] | None = None,
@@ -251,9 +251,9 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
             **kwargs,
         )
 
-    async def astream(  # type: ignore[override]  # skipcq: PYL-W0622
+    async def astream(  # type: ignore[override]
         self,
-        input: A2AInput,
+        input: A2AInput,  # skipcq: PYL-W0622
         config: RunnableConfig | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[A2AStreamEvent]:
@@ -364,10 +364,13 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
         runnable = self
 
         class _A2ATool(BaseTool):
+            """LangChain BaseTool wrapper for A2A agent execution."""
+
             name: str = tool_name
             description: str = tool_description
 
             async def _arun(self, query: str, **kwargs: Any) -> str:
+                """Execute the A2A agent asynchronously."""
                 try:
                     result = await runnable.ainvoke(query)
                 except A2AAdapterError as e:
@@ -417,6 +420,7 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
                 return ""
 
             def _run(self, query: str, **kwargs: Any) -> str:
+                """Execute the A2A agent synchronously."""
                 import asyncio
 
                 return asyncio.run(self._arun(query, **kwargs))

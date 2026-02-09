@@ -333,6 +333,7 @@ class A2AClientWrapper:
         return self._agent_card
 
     async def get_agent_card(self) -> AgentCard:
+        """Fetch and return the agent card."""
         await self._ensure_client()
         assert self._agent_card is not None
         return self._agent_card

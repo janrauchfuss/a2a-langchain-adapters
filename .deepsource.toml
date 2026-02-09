@@ -1,0 +1,18 @@
+version = 1
+
+test_patterns = ["tests/**"]
+
+[[analyzers]]
+name = "python"
+
+  [analyzers.meta]
+  runtime_version = "3.13.x"
+
+   # Keep in sync with ruff line length
+  max_line_length = 88
+
+  # DeepSource run mypy as the type checker
+  type_checker = "mypy"
+
+[[code_formatters]]
+name = "ruff"

@@ -1,0 +1,52 @@
+name: Tests
+
+on:
+  workflow_call:
+    inputs:
+      python-versions:
+        type: string
+        required: false
+        default: '["3.10","3.11","3.12","3.13"]'
+      coverage_package:
+        type: string
+        required: true
+      coverage_python:
+        type: string
+        required: false
+        default: "3.13"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ${{ fromJSON(inputs.python-versions) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Pytest (with coverage)
+        run: uv run pytest -q --disable-warnings --cov=${{ inputs.coverage_package }} --cov-report=xml
+
+      - name: Upload coverage artifact
+        if: ${{ matrix.python == inputs.coverage_python }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: error

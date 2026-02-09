@@ -1,0 +1,119 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "langchain-a2a-adapters"
+version = "0.0.0"
+description = "Integrate A2A protocol agents into LangChain/LangGraph applications"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+
+dependencies = [
+    "a2a-sdk>=0.3.19",
+    "httpx>=0.28.1",
+    "langchain-core>=1.0.0,<2.0.0",
+    "pydantic>=2.12.5",
+]
+
+[project.optional-dependencies]
+grpc = [
+    "grpcio>=1.60.0",
+]
+
+[dependency-groups]
+dev = [
+    "python-semantic-release>=10.5.3",
+]
+test = [
+    "deptry>=0.24.0",
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.15.0",
+]
+
+[tool.mypy]
+# Basic configuration
+python_version = "3.13"
+pretty = true
+
+# Good “serious but not unbearable” baseline:
+warn_return_any = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = false
+disallow_any_generics = true
+
+# Commonly needed in OSS until you type all deps:
+ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+extend-exclude = [".venv", "build", "dist"]
+
+[tool.ruff.lint]
+# A pragmatic starting set (fast + high signal):
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = []
+
+[tool.ruff.lint.pydocstyle]
+# Use Google docstring style, which is common in the Python ecosystem.
+convention = "google"
+
+[tool.ruff.format]
+# Ruff formatter is opinionated; keep defaults unless you have a reason
+
+[tool.deptry]
+package_module_name_map = {grpcio = "grpc"}
+
+[tool.semantic_release]
+commit_parser = "conventional"
+version_toml = ["pyproject.toml:project.version"]
+allow_zero_version = true
+tag_format = "v{version}"
+branches = ["main"]
+upload_to_vcs_release = true
+upload_to_pypi = false
+
+# Keep uv.lock in sync after version bump, then build dists
+# (This is the key uv-specific bit.)
+build_command = """
+uv lock
+git add uv.lock
+uv build
+"""
+
+[tool.semantic_release.commit_parser_options]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+parse_squash_commits = true
+ignore_merge_commits = true
+
+# Optional: treat these as "no release" even if they appear
+# (You already exclude them from changelog; this prevents accidental bumps)
+no_release_tags = ["chore", "ci", "docs", "refactor", "style", "test", "build"]
+
+[tool.semantic_release.changelog]
+# Optionally define which sections appear and their order
+# (If you omit this, PSR uses defaults)
+# sections = ["feature", "fix", "performance", "breaking", "documentation", "other"]
+
+exclude_commit_patterns = [
+  '''chore(?:\([^)]*?\))?: .+''',
+  '''ci(?:\([^)]*?\))?: .+''',
+  '''refactor(?:\([^)]*?\))?: .+''',
+  '''style(?:\([^)]*?\))?: .+''',
+  '''test(?:\([^)]*?\))?: .+''',
+  '''build(?:\([^)]*?\))?: .+''',
+  '''Initial [Cc]ommit.*''',
+]
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+output_format = "md"

@@ -1,0 +1,55 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+
+# Packaging/build
+build/
+dist/
+*.egg
+*.whl
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Test/coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Type checker/linter caches
+.mypy_cache/
+.pyright/
+.ruff_cache/
+
+# Hypothesis
+.hypothesis/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+
+# UV
+.uv/
+
+# Temporary files
+.temp/

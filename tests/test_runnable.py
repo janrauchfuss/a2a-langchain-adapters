@@ -1,0 +1,694 @@
+"""Tests for langchain_a2a_adapters.runnable."""
+
+from __future__ import annotations
+
+import json
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+from langchain_core.tools import ToolException
+
+from langchain_a2a_adapters.runnable import A2ARunnable
+from langchain_a2a_adapters.types import A2AResult
+
+from .conftest import (
+    make_data_part,
+    make_streaming_artifact_event,
+    make_streaming_status_event,
+    make_text_part,
+)
+
+# ============================================================================
+# A2ARunnable initialization and factory
+# ============================================================================
+
+
+class TestA2ARunnableFactory:
+    """Tests for A2ARunnable.from_agent_url factory method."""
+
+    @pytest.mark.asyncio
+    async def test_from_agent_url_success(self, agent_card):
+        """Successfully create A2ARunnable from agent URL."""
+        # Mock the client wrapper
+        with patch("langchain_a2a_adapters.runnable.A2AClientWrapper") as MockWrapper:
+            mock_wrapper_instance = AsyncMock()
+            mock_wrapper_instance.agent_card = agent_card
+            mock_wrapper_instance.get_agent_card = AsyncMock(return_value=agent_card)
+            mock_wrapper_instance.requires_mTLS = Mock(return_value=False)
+            MockWrapper.return_value = mock_wrapper_instance
+
+            # Create runnable
+            runnable = await A2ARunnable.from_agent_url("http://test-agent:8080")
+
+            # Verify
+            assert runnable is not None
+            assert runnable.agent_card == agent_card
+            MockWrapper.assert_called_once_with(
+                "http://test-agent:8080",
+                timeout=30.0,
+                headers=None,
+                auth=None,
+                transport=None,
+            )
+
+    @pytest.mark.asyncio
+    async def test_from_agent_url_with_timeout(self, agent_card):
+        """Create A2ARunnable with custom timeout."""
+        with patch("langchain_a2a_adapters.runnable.A2AClientWrapper") as MockWrapper:
+            mock_wrapper_instance = AsyncMock()
+            mock_wrapper_instance.agent_card = agent_card
+            mock_wrapper_instance.get_agent_card = AsyncMock(return_value=agent_card)
+            mock_wrapper_instance.requires_mTLS = Mock(return_value=False)
+            MockWrapper.return_value = mock_wrapper_instance
+
+            await A2ARunnable.from_agent_url("http://test-agent:8080", timeout=60.0)
+
+            MockWrapper.assert_called_once_with(
+                "http://test-agent:8080",
+                timeout=60.0,
+                headers=None,
+                auth=None,
+                transport=None,
+            )
+
+    @pytest.mark.asyncio
+    async def test_from_agent_url_with_headers(self, agent_card):
+        """Create A2ARunnable with custom headers."""
+        headers = {"Authorization": "Bearer token123"}
+        with patch("langchain_a2a_adapters.runnable.A2AClientWrapper") as MockWrapper:
+            mock_wrapper_instance = AsyncMock()
+            mock_wrapper_instance.agent_card = agent_card
+            mock_wrapper_instance.get_agent_card = AsyncMock(return_value=agent_card)
+            mock_wrapper_instance.requires_mTLS = Mock(return_value=False)
+            MockWrapper.return_value = mock_wrapper_instance
+
+            await A2ARunnable.from_agent_url(
+                "http://test-agent:8080",
+                timeout=45.0,
+                headers=headers,
+            )
+
+            MockWrapper.assert_called_once_with(
+                "http://test-agent:8080",
+                timeout=45.0,
+                headers=headers,
+                auth=None,
+                transport=None,
+            )
+
+
+# ============================================================================
+# Invocation tests
+# ============================================================================
+
+
+class TestA2ARunnableInvoke:
+    """Tests for A2ARunnable.invoke and ainvoke."""
+
+    @pytest.mark.asyncio
+    async def test_ainvoke_text_input(self, client_wrapper, agent_card):
+        """ainvoke with text input."""
+        runnable = A2ARunnable(client_wrapper)
+        expected_result = A2AResult(
+            text="Response text",
+            task_id="task123",
+            context_id="ctx456",
+            status="completed",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        result = await runnable.ainvoke("Hello, agent")
+
+        assert result == expected_result
+        client_wrapper.send_message.assert_called_once_with(
+            "Hello, agent", files=None, context_id=None
+        )
+
+    @pytest.mark.asyncio
+    async def test_ainvoke_dict_input(self, client_wrapper):
+        """ainvoke with dict input."""
+        runnable = A2ARunnable(client_wrapper)
+        expected_result = A2AResult(
+            data=[{"key": "value"}],
+            task_id="task123",
+            context_id="ctx456",
+            status="completed",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        result = await runnable.ainvoke({"action": "analyze"})
+
+        assert result == expected_result
+        client_wrapper.send_message.assert_called_once_with(
+            {"action": "analyze"}, files=None, context_id=None
+        )
+
+    @pytest.mark.asyncio
+    async def test_ainvoke_with_context(self, client_wrapper):
+        """ainvoke preserves context_id for multi-turn."""
+        context_id = "ctx789"
+        runnable = A2ARunnable(client_wrapper, context_id=context_id)
+
+        expected_result = A2AResult(
+            text="Response",
+            task_id="task123",
+            context_id=context_id,
+            status="completed",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        await runnable.ainvoke("Follow-up message")
+
+        client_wrapper.send_message.assert_called_once_with(
+            "Follow-up message", files=None, context_id=context_id
+        )
+
+    @pytest.mark.asyncio
+    async def test_ainvoke_passes_kwargs(self, client_wrapper):
+        """ainvoke passes through kwargs to send_message."""
+        runnable = A2ARunnable(client_wrapper)
+        expected_result = A2AResult(
+            text="Response",
+            task_id="task123",
+            context_id="ctx456",
+            status="completed",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        await runnable.ainvoke("Hello", timeout=60.0, custom_param="value")
+
+        client_wrapper.send_message.assert_called_once_with(
+            "Hello",
+            files=None,
+            context_id=None,
+            timeout=60.0,
+            custom_param="value",
+        )
+
+    def test_invoke_exists(self):
+        """invoke method exists and accepts input and config."""
+        wrapper = AsyncMock()
+        wrapper.agent_card = None
+        runnable = A2ARunnable(wrapper)
+
+        # Just verify the method exists and has the right signature
+        assert hasattr(runnable, "invoke")
+        assert callable(runnable.invoke)
+
+
+# ============================================================================
+# Streaming tests
+# ============================================================================
+
+
+class TestA2ARunnableStream:
+    """Tests for A2ARunnable.astream."""
+
+    @pytest.mark.asyncio
+    async def test_astream_text_events(self, client_wrapper):
+        """astream yields text-only artifact events."""
+        runnable = A2ARunnable(client_wrapper)
+
+        # Mock streaming response with text artifact
+        text_part = make_text_part("streaming text")
+        artifact_event = make_streaming_artifact_event(
+            [text_part],
+            task_id="task1",
+            context_id="ctx1",
+        )
+
+        async def mock_stream(*args, **kwargs):
+            yield artifact_event.root.result  # type: ignore[union-attr]
+
+        client_wrapper.stream_message = mock_stream
+
+        events = []
+        async for event in runnable.astream("query"):
+            events.append(event)
+
+        assert len(events) == 1
+        assert events[0].kind == "artifact-update"
+        assert events[0].text == "streaming text"
+        assert events[0].task_id == "task1"
+
+    @pytest.mark.asyncio
+    async def test_astream_data_events(self, client_wrapper):
+        """astream yields structured data from DataParts."""
+        runnable = A2ARunnable(client_wrapper)
+
+        data_part = make_data_part({"result": "analysis"})
+        artifact_event = make_streaming_artifact_event(
+            [data_part],
+            task_id="task1",
+        )
+
+        async def mock_stream(*args, **kwargs):
+            yield artifact_event.root.result  # type: ignore[union-attr]
+
+        client_wrapper.stream_message = mock_stream
+
+        events = []
+        async for event in runnable.astream("query"):
+            events.append(event)
+
+        assert len(events) == 1
+        assert events[0].kind == "artifact-update"
+        assert events[0].data == [{"result": "analysis"}]
+
+    @pytest.mark.asyncio
+    async def test_astream_mixed_events(self, client_wrapper):
+        """astream handles artifact and status events in sequence."""
+        runnable = A2ARunnable(client_wrapper)
+
+        text_part = make_text_part("hello")
+        artifact = make_streaming_artifact_event([text_part], task_id="t1")
+        status = make_streaming_status_event(task_id="t1", final=True)
+
+        async def mock_stream(*args, **kwargs):
+            yield artifact.root.result  # type: ignore[union-attr]
+            yield status.root.result  # type: ignore[union-attr]
+
+        client_wrapper.stream_message = mock_stream
+
+        events = list([e async for e in runnable.astream("query")])
+
+        assert len(events) == 2
+        assert events[0].kind == "artifact-update"
+        assert events[1].kind == "status-update"
+
+    @pytest.mark.asyncio
+    async def test_astream_with_context(self, client_wrapper):
+        """astream preserves context_id for multi-turn."""
+        context_id = "ctx789"
+        runnable = A2ARunnable(client_wrapper, context_id=context_id)
+
+        status_event = make_streaming_status_event(task_id="t1")
+
+        async def mock_stream(*args, **kwargs):
+            assert kwargs.get("context_id") == context_id
+            yield status_event.root.result  # type: ignore[union-attr]
+
+        client_wrapper.stream_message = mock_stream
+
+        async for _ in runnable.astream("query"):
+            pass
+
+
+# ============================================================================
+# Context management tests
+# ============================================================================
+
+
+class TestA2ARunnableContext:
+    """Tests for A2ARunnable.with_context."""
+
+    def test_with_context_creates_new_runnable(self, client_wrapper):
+        """with_context returns a new A2ARunnable with bound context."""
+        runnable = A2ARunnable(client_wrapper)
+        context_id = "conversation-123"
+
+        new_runnable = runnable.with_context(context_id)
+
+        assert new_runnable is not runnable  # New instance
+        assert new_runnable._context_id == context_id
+        assert runnable._context_id is None  # Original unchanged
+
+    def test_with_context_chaining(self, client_wrapper):
+        """with_context can be chained."""
+        runnable = A2ARunnable(client_wrapper)
+
+        first_context = "ctx1"
+        second_context = "ctx2"
+
+        r1 = runnable.with_context(first_context)
+        r2 = r1.with_context(second_context)
+
+        assert r1._context_id == first_context
+        assert r2._context_id == second_context
+        assert runnable._context_id is None
+
+
+# ============================================================================
+# Task management tests
+# ============================================================================
+
+
+class TestA2ARunnableTaskManagement:
+    """Tests for A2ARunnable.get_task, cancel_task."""
+
+    @pytest.mark.asyncio
+    async def test_get_task(self, client_wrapper):
+        """get_task delegates to client wrapper."""
+        runnable = A2ARunnable(client_wrapper)
+        expected_result = A2AResult(
+            status="working",
+            task_id="task123",
+            context_id="ctx1",
+            text="Current status",
+        )
+        client_wrapper.get_task = AsyncMock(return_value=expected_result)
+
+        result = await runnable.get_task("task123")
+
+        assert result == expected_result
+        client_wrapper.get_task.assert_called_once_with("task123")
+
+    @pytest.mark.asyncio
+    async def test_cancel_task(self, client_wrapper):
+        """cancel_task delegates to client wrapper."""
+        runnable = A2ARunnable(client_wrapper)
+        expected_result = A2AResult(
+            status="canceled",
+            task_id="task123",
+            context_id="ctx1",
+        )
+        client_wrapper.cancel_task = AsyncMock(return_value=expected_result)
+
+        result = await runnable.cancel_task("task123")
+
+        assert result == expected_result
+        client_wrapper.cancel_task.assert_called_once_with("task123")
+
+
+# Tool binding tests
+# ============================================================================
+
+
+class TestA2ARunnableTool:
+    """Tests for A2ARunnable.as_tool and as_tools."""
+
+    def test_as_tool_default_name_and_description(self, client_wrapper, agent_card):
+        """as_tool derives name and description from agent card."""
+        runnable = A2ARunnable(client_wrapper)
+
+        tool = runnable.as_tool()
+
+        assert tool.name == "test_agent"  # Sanitized from "Test Agent"
+        assert tool.description.startswith("A test agent for unit tests")
+        assert "Protocol version:" in tool.description
+
+    def test_as_tool_custom_name_and_description(self, client_wrapper):
+        """as_tool accepts custom name and description."""
+        runnable = A2ARunnable(client_wrapper)
+
+        tool = runnable.as_tool(
+            name="custom_name",
+            description="Custom description",
+        )
+
+        assert tool.name == "custom_name"
+        # Custom description should be used as-is without extra metadata
+        assert tool.description == "Custom description"
+
+    def test_as_tool_fallback_no_agent_card(self):
+        """as_tool falls back when no agent card."""
+        wrapper = AsyncMock()
+        wrapper.agent_card = None
+
+        runnable = A2ARunnable(wrapper)
+        tool = runnable.as_tool()
+
+        assert tool.name == "a2a_agent"
+        assert tool.description == "Interact with A2A agent"
+
+    @pytest.mark.asyncio
+    async def test_as_tool_execution_success(self, client_wrapper):
+        """Tool execution calls runnable.ainvoke and returns text."""
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            text="Tool response text",
+            task_id="task123",
+            status="completed",
+            context_id="ctx1",
+            data=[],
+            files=[],
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        # Tools have both _arun and _run
+        result = await tool._arun("query")
+
+        assert result == "Tool response text"
+        client_wrapper.send_message.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_as_tool_execution_fallback_to_data(self, client_wrapper):
+        """Tool execution falls back to data if no text."""
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            text=None,
+            data=[{"key": "value"}],
+            task_id="task123",
+            status="completed",
+            context_id="ctx1",
+            files=[],
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        result = await tool._arun("query")
+
+        assert result == json.dumps([{"key": "value"}])
+
+    @pytest.mark.asyncio
+    async def test_as_tool_execution_error(self, client_wrapper):
+        """Tool execution raises ToolException on rejected status."""
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            task_id="task123",
+            status="rejected",
+            context_id="ctx1",
+            text=None,
+            data=[],
+            files=[],
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        with pytest.raises(ToolException):
+            await tool._arun("query")
+
+    @pytest.mark.asyncio
+    async def test_as_tool_execution_empty_response(self, client_wrapper):
+        """Tool execution returns empty string if no text/data."""
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            text=None,
+            task_id="task123",
+            status="completed",
+            context_id="ctx1",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        result = await tool._arun("query")
+
+        assert result == ""
+
+    def test_as_tools_with_skills(self, client_wrapper, agent_card):
+        """as_tools creates one tool per skill."""
+        runnable = A2ARunnable(client_wrapper)
+
+        tools = runnable.as_tools()
+
+        # Agent card has 2 skills: summarize, translate
+        assert len(tools) == 2
+        tool_names = {t.name for t in tools}
+        assert "summarize" in tool_names
+        assert "translate" in tool_names
+
+    def test_as_tools_fallback_no_skills(self, agent_card_no_skills):
+        """as_tools falls back to single agent tool if no skills."""
+        wrapper = AsyncMock()
+        wrapper.agent_card = agent_card_no_skills
+
+        runnable = A2ARunnable(wrapper)
+        tools = runnable.as_tools()
+
+        assert len(tools) == 1
+        assert tools[0].name == "simple_agent"
+
+    def test_sanitize_name(self):
+        """_sanitize_name converts to valid tool name."""
+        assert A2ARunnable._sanitize_name("My Tool") == "my_tool"
+        assert A2ARunnable._sanitize_name("Tool-Name") == "tool_name"
+        assert A2ARunnable._sanitize_name("UPPERCASE") == "uppercase"
+        assert A2ARunnable._sanitize_name("mixed Case-Tool") == "mixed_case_tool"
+
+
+# ============================================================================
+# Lifecycle management tests
+# ============================================================================
+
+
+class TestA2ARunnableLifecycle:
+    """Tests for A2ARunnable resource management."""
+
+    @pytest.mark.asyncio
+    async def test_close(self, client_wrapper):
+        """close delegates to client wrapper."""
+        runnable = A2ARunnable(client_wrapper)
+        client_wrapper.close = AsyncMock()
+
+        await runnable.close()
+
+        client_wrapper.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_context_manager(self, client_wrapper):
+        """A2ARunnable supports async context manager protocol."""
+        runnable = A2ARunnable(client_wrapper)
+        client_wrapper.close = AsyncMock()
+
+        async with runnable as r:
+            assert r is runnable
+
+        client_wrapper.close.assert_called_once()
+
+    def test_agent_card_property(self, client_wrapper, agent_card):
+        """agent_card property returns client's agent card."""
+        runnable = A2ARunnable(client_wrapper)
+
+        assert runnable.agent_card == agent_card
+
+
+# ============================================================================
+# Edge cases and error handling
+# ============================================================================
+
+
+class TestA2ARunnableEdgeCases:
+    """Edge cases and error handling."""
+
+    @pytest.mark.asyncio
+    async def test_multiple_text_parts_concatenation(self, client_wrapper):
+        """Multiple text parts are concatenated with newlines."""
+        runnable = A2ARunnable(client_wrapper)
+
+        text1 = make_text_part("First part")
+        text2 = make_text_part("Second part")
+        artifact_event = make_streaming_artifact_event([text1, text2])
+
+        async def mock_stream(*args, **kwargs):
+            yield artifact_event.root.result  # type: ignore[union-attr]
+
+        client_wrapper.stream_message = mock_stream
+
+        events = list([e async for e in runnable.astream("query")])
+
+        assert events[0].text == "First part\nSecond part"
+
+
+# ============================================================================
+# Enhanced tool metadata tests
+# ============================================================================
+
+
+class TestEnhancedToolMetadata:
+    """Test enhanced tool descriptions with examples and tags."""
+
+    def test_tool_includes_examples(self, agent_card_with_examples):
+        """Tool description includes skill examples."""
+        wrapper = AsyncMock()
+        wrapper.agent_card = agent_card_with_examples
+
+        runnable = A2ARunnable(wrapper)
+        tools = runnable.as_tools()
+
+        assert len(tools) == 1
+        desc = tools[0].description
+        assert "Examples:" in desc
+        assert "Summarize the Q4 earnings report" in desc
+
+    def test_tool_includes_tags(self, agent_card_with_examples):
+        """Tool description includes skill tags."""
+        wrapper = AsyncMock()
+        wrapper.agent_card = agent_card_with_examples
+
+        runnable = A2ARunnable(wrapper)
+        tools = runnable.as_tools()
+
+        assert len(tools) == 1
+        desc = tools[0].description
+        assert "Tags:" in desc
+        assert "nlp" in desc
+        assert "summarization" in desc
+
+    def test_agent_tool_includes_protocol_version(self, agent_card_with_examples):
+        """Whole-agent tool includes protocol version."""
+        wrapper = AsyncMock()
+        wrapper.agent_card = agent_card_with_examples
+
+        runnable = A2ARunnable(wrapper)
+        tool = runnable.as_tool()
+
+        assert "Protocol version:" in tool.description
+        assert "1.0.0" in tool.description
+
+    def test_agent_tool_includes_documentation_url(self, agent_card_with_examples):
+        """Whole-agent tool includes documentation URL."""
+        wrapper = AsyncMock()
+        wrapper.agent_card = agent_card_with_examples
+
+        runnable = A2ARunnable(wrapper)
+        tool = runnable.as_tool()
+
+        assert "Docs:" in tool.description
+        assert "https://docs.example.com/agent" in tool.description
+
+    def test_metadata_protocol_version_property(self, agent_card_with_examples):
+        """Test protocol_version property."""
+        wrapper = AsyncMock()
+        wrapper.agent_card = agent_card_with_examples
+
+        runnable = A2ARunnable(wrapper)
+
+        assert runnable.protocol_version == "1.0.0"
+
+    def test_metadata_documentation_url_property(self, agent_card_with_examples):
+        """Test documentation_url property."""
+        wrapper = AsyncMock()
+        wrapper.agent_card = agent_card_with_examples
+
+        runnable = A2ARunnable(wrapper)
+
+        assert runnable.documentation_url == "https://docs.example.com/agent"
+
+    def test_metadata_properties_without_agent_card(self):
+        """Test metadata properties return None without agent card."""
+        wrapper = AsyncMock()
+        wrapper.agent_card = None
+
+        runnable = A2ARunnable(wrapper)
+
+        assert runnable.protocol_version is None
+        assert runnable.documentation_url is None
+        assert runnable.preferred_transport is None
+
+    def test_metadata_preferred_transport_property(self):
+        """Test preferred_transport property."""
+        from a2a.types import AgentCapabilities, AgentCard
+
+        card = AgentCard(
+            name="gRPC Agent",
+            description="Agent preferring gRPC",
+            url="grpc://test:50051",
+            version="1.0.0",
+            preferred_transport="grpc",
+            capabilities=AgentCapabilities(),
+            default_input_modes=["text/plain"],
+            default_output_modes=["text/plain"],
+            skills=[],
+        )
+
+        wrapper = AsyncMock()
+        wrapper.agent_card = card
+
+        runnable = A2ARunnable(wrapper)
+
+        assert runnable.preferred_transport == "grpc"

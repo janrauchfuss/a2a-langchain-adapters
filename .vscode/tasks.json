@@ -1,0 +1,129 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Setup (Just)",
+			"type": "shell",
+			"command": "just setup",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"showReuseMessage": false
+			}
+		},
+		{
+			"label": "Build (Just)",
+			"type": "shell",
+			"command": "just build",
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Test (Just)",
+			"type": "shell",
+			"command": "just test",
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Coverage (Just)",
+			"type": "shell",
+			"command": "just coverage",
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "QA (Just)",
+			"type": "shell",
+			"command": "just qa",
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Pytest: All Tests",
+			"type": "shell",
+			"command": "uv run pytest tests -v --tb=short",
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"problemMatcher": {
+				"owner": "python",
+				"fileLocation": ["relative", "${workspaceFolder}"],
+				"pattern": {
+					"regexp": "^([^:]+):(\\d+):\\s+(.*)$",
+					"file": 1,
+					"location": 2,
+					"message": 3
+				}
+			}
+		},
+		{
+			"label": "Pytest: With Coverage",
+			"type": "shell",
+			"command": "uv run pytest tests -v --cov=src --cov-report=html --cov-report=term-missing",
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Ruff: Format",
+			"type": "shell",
+			"command": "uv run ruff format src tests",
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Ruff: Check",
+			"type": "shell",
+			"command": "uv run ruff check --fix src tests",
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Mypy: Type Check",
+			"type": "shell",
+			"command": "uv run mypy src --strict",
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		},
+		{
+			"label": "Deptry: Dependency Check",
+			"type": "shell",
+			"command": "uv run deptry .",
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
+		}
+	]
+}

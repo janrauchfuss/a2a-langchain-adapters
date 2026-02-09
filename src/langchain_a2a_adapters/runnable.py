@@ -162,7 +162,7 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
         """
         return A2ARunnable(self._client, context_id=context_id)
 
-    async def ainvoke(
+    async def ainvoke(  # skipcq: PYL-R0201, PYL-W0622
         self,
         input: A2AInput,
         config: RunnableConfig | None = None,
@@ -215,7 +215,7 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
         card = self._client.agent_card
         return f"A2ARunnable({card.name})" if card else "A2ARunnable"
 
-    def invoke(
+    def invoke(  # skipcq: PYL-R0201, PYL-W0622
         self,
         input: A2AInput,
         config: RunnableConfig | None = None,
@@ -251,7 +251,7 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
             **kwargs,
         )
 
-    async def astream(  # type: ignore[override]
+    async def astream(  # type: ignore[override]  # skipcq: PYL-W0622
         self,
         input: A2AInput,
         config: RunnableConfig | None = None,
@@ -450,9 +450,8 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
 
             # Add examples if present (a2a-sdk 0.3.19+ feature)
             if hasattr(skill, "examples") and skill.examples:
-                examples_text = "\n\nExamples:\n"
-                for ex in skill.examples[:3]:  # Limit to 3 examples
-                    examples_text += f"- {ex}\n"
+                examples_lines = [f"- {ex}" for ex in skill.examples[:3]]
+                examples_text = "\n\nExamples:\n" + "\n".join(examples_lines) + "\n"
                 tool_desc += examples_text
 
             # Add tags if present

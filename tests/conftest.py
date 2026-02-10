@@ -1,4 +1,4 @@
-"""Shared fixtures for langchain-a2a-adapters tests."""
+"""Shared fixtures for a2a-langchain-adapters tests."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from a2a.types import (
     TextPart,
 )
 
-from langchain_a2a_adapters.client_wrapper import A2AClientWrapper
+from a2a_langchain_adapters.client_wrapper import A2AClientWrapper
 
 # ---------------------------------------------------------------------------
 # Agent cards
@@ -136,6 +136,7 @@ def make_task(
     state: TaskState = TaskState.completed,
     artifacts: list[Artifact] | None = None,
     status_message: Message | None = None,
+    history: list[Message] | None = None,
     task_id: str | None = None,
     context_id: str | None = None,
 ) -> Task:
@@ -144,6 +145,7 @@ def make_task(
         context_id=context_id or str(uuid4()),
         status=TaskStatus(state=state, message=status_message),
         artifacts=artifacts,
+        history=history,
     )
 
 
@@ -212,6 +214,7 @@ def make_streaming_status_event(
     task_id: str = "t1",
     context_id: str = "c1",
     state: TaskState = TaskState.working,
+    status_message: Message | None = None,
     final: bool = False,
 ) -> SendStreamingMessageResponse:
     return SendStreamingMessageResponse(
@@ -220,7 +223,7 @@ def make_streaming_status_event(
             result=TaskStatusUpdateEvent(
                 task_id=task_id,
                 context_id=context_id,
-                status=TaskStatus(state=state),
+                status=TaskStatus(state=state, message=status_message),
                 final=final,
             ),
         )

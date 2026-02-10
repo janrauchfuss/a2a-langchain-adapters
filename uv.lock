@@ -3,6 +3,56 @@ revision = 3
 requires-python = ">=3.13"
 
 [[package]]
+name = "a2a-langchain-adapters"
+version = "0.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "a2a-sdk" },
+    { name = "httpx" },
+    { name = "langchain-core" },
+    { name = "pydantic" },
+]
+
+[package.optional-dependencies]
+grpc = [
+    { name = "grpcio" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "python-semantic-release" },
+]
+test = [
+    { name = "deptry" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "a2a-sdk", specifier = ">=0.3.19" },
+    { name = "grpcio", marker = "extra == 'grpc'", specifier = ">=1.60.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "langchain-core", specifier = ">=1.0.0,<2.0.0" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+]
+provides-extras = ["grpc"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "python-semantic-release", specifier = ">=10.5.3" }]
+test = [
+    { name = "deptry", specifier = ">=0.24.0" },
+    { name = "mypy", specifier = ">=1.19.1" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-asyncio", specifier = ">=0.25.0" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "ruff", specifier = ">=0.15.0" },
+]
+
+[[package]]
 name = "a2a-sdk"
 version = "0.3.22"
 source = { registry = "https://pypi.org/simple" }
@@ -525,56 +575,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6a/0a/eebeb1fa92507ea94016a2a790b93c2ae41a7e18778f85471dc54475ed25/jsonpointer-3.0.0.tar.gz", hash = "sha256:2b2d729f2091522d61c3b31f82e11870f60b68f43fbc705cb76bf4b832af59ef", size = 9114, upload-time = "2024-06-10T19:24:42.462Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/71/92/5e77f98553e9e75130c78900d000368476aed74276eb8ae8796f65f00918/jsonpointer-3.0.0-py2.py3-none-any.whl", hash = "sha256:13e088adc14fca8b6aa8177c044e12701e6ad4b28ff10e65f2267a90109c9942", size = 7595, upload-time = "2024-06-10T19:24:40.698Z" },
-]
-
-[[package]]
-name = "langchain-a2a-adapters"
-version = "0.0.0"
-source = { editable = "." }
-dependencies = [
-    { name = "a2a-sdk" },
-    { name = "httpx" },
-    { name = "langchain-core" },
-    { name = "pydantic" },
-]
-
-[package.optional-dependencies]
-grpc = [
-    { name = "grpcio" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "python-semantic-release" },
-]
-test = [
-    { name = "deptry" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "a2a-sdk", specifier = ">=0.3.19" },
-    { name = "grpcio", marker = "extra == 'grpc'", specifier = ">=1.60.0" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "langchain-core", specifier = ">=1.0.0,<2.0.0" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-]
-provides-extras = ["grpc"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "python-semantic-release", specifier = ">=10.5.3" }]
-test = [
-    { name = "deptry", specifier = ">=0.24.0" },
-    { name = "mypy", specifier = ">=1.19.1" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-asyncio", specifier = ">=0.25.0" },
-    { name = "pytest-cov", specifier = ">=7.0.0" },
-    { name = "ruff", specifier = ">=0.15.0" },
 ]
 
 [[package]]

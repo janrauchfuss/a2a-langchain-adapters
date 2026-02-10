@@ -1,4 +1,4 @@
-"""Type definitions for langchain-a2a-adapters."""
+"""Type definitions for a2a-langchain-adapters."""
 
 from typing import Any
 

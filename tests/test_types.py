@@ -1,6 +1,6 @@
-"""Tests for langchain_a2a_adapters.types."""
+"""Tests for a2a_langchain_adapters.types."""
 
-from langchain_a2a_adapters.types import A2AResult, A2AStreamEvent
+from a2a_langchain_adapters.types import A2AResult, A2AStreamEvent
 
 
 class TestA2AResult:

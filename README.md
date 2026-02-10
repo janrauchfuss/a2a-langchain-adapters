@@ -1,11 +1,11 @@
-# LangChain A2A Adapters
+# A2A LangChain Adapters
 
 A production-ready Python package for integrating A2A protocol agents into LangChain/LangGraph. Enables stateful conversations, streaming, multi-turn context management, and seamless LLM tool binding with A2A agents.
 
-[![Build](https://github.com/janrauchfuss/langchain-a2a-adapters/actions/workflows/build_main.yml/badge.svg)](https://github.com/janrauchfuss/langchain-a2a-adapters/actions/workflows/build_main.yml)
-[![DeepSource](https://app.deepsource.com/gh/janrauchfuss/langchain-a2a-adapters.svg/?label=code+coverage&show_trend=true&token=Uc5Zf3uf_7cuQrRWlftv5UrU)](https://app.deepsource.com/gh/janrauchfuss/langchain-a2a-adapters/)
-[![DeepSource](https://app.deepsource.com/gh/janrauchfuss/langchain-a2a-adapters.svg/?label=active+issues&show_trend=true&token=Uc5Zf3uf_7cuQrRWlftv5UrU)](https://app.deepsource.com/gh/janrauchfuss/langchain-a2a-adapters/)
-[![DeepSource](https://app.deepsource.com/gh/janrauchfuss/langchain-a2a-adapters.svg/?label=resolved+issues&show_trend=true&token=Uc5Zf3uf_7cuQrRWlftv5UrU)](https://app.deepsource.com/gh/janrauchfuss/langchain-a2a-adapters/)
+[![Build](https://github.com/janrauchfuss/a2a-langchain-adapters/actions/workflows/build_main.yml/badge.svg)](https://github.com/janrauchfuss/a2a-langchain-adapters/actions/workflows/build_main.yml)
+[![DeepSource](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters.svg/?label=code+coverage&show_trend=true&token=Uc5Zf3uf_7cuQrRWlftv5UrU)](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters/)
+[![DeepSource](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters.svg/?label=active+issues&show_trend=true&token=Uc5Zf3uf_7cuQrRWlftv5UrU)](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters/)
+[![DeepSource](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters.svg/?label=resolved+issues&show_trend=true&token=Uc5Zf3uf_7cuQrRWlftv5UrU)](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters/)
 [![Ruff](https://img.shields.io/badge/ruff-enabled-success)](https://docs.astral.sh/ruff/)
 [![mypy](https://img.shields.io/badge/mypy-checked-success)](http://mypy-lang.org/)
 [![deptry](https://img.shields.io/badge/deptry-enabled-success)](https://github.com/fpgmaas/deptry)
@@ -27,13 +27,13 @@ A production-ready Python package for integrating A2A protocol agents into LangC
 ### Basic (HTTP only)
 
 ```bash
-pip install langchain-a2a-adapters
+pip install a2a-langchain-adapters
 ```
 
 ### With gRPC Support
 
 ```bash
-pip install langchain-a2a-adapters[grpc]
+pip install a2a-langchain-adapters[grpc]
 ```
 
 ## 🚀 Quick Start
@@ -42,7 +42,7 @@ pip install langchain-a2a-adapters[grpc]
 
 ```python
 import asyncio
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def main():
     # Create agent runnable by discovering agent card

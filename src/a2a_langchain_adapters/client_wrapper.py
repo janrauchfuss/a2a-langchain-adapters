@@ -132,7 +132,8 @@ def _build_message(
         files: Optional list of (filename, file_bytes, mime_type) tuples.
         context_id: Conversation context for multi-turn.
         task_id: Existing task to continue.
-        metadata: Optional message-level metadata (e.g., {"skill": "skill-id"} for routing).
+        metadata: Optional message-level metadata
+            (e.g., {"skill": "skill-id"} for routing).
 
     Returns:
         A2A Message with one or more Parts.
@@ -308,7 +309,7 @@ class A2AClientWrapper:
             except ImportError as e:
                 raise ImportError(
                     "gRPC transport requires the 'grpc' extra. "
-                    "Install with: pip install langchain-a2a-adapters[grpc]"
+                    "Install with: pip install a2a-langchain-adapters[grpc]"
                 ) from e
 
         raise ValueError(
@@ -526,7 +527,8 @@ class A2AClientWrapper:
             files: Optional list of (filename, file_bytes, mime_type) tuples.
             context_id: Conversation context for multi-turn.
             task_id: Existing task to continue.
-            metadata: Optional message-level metadata (e.g., {"skill": "skill-id"} for routing).
+            metadata: Optional message-level metadata
+                (e.g., {"skill": "skill-id"} for routing).
 
         Returns:
             A2AResult with all Part types preserved.
@@ -550,7 +552,11 @@ class A2AClientWrapper:
         client = await self._ensure_client()
 
         message = _build_message(
-            input, files=files, context_id=context_id, task_id=task_id, metadata=metadata
+            input,
+            files=files,
+            context_id=context_id,
+            task_id=task_id,
+            metadata=metadata,
         )
         request = SendMessageRequest(
             id=str(uuid4()),
@@ -861,7 +867,8 @@ class A2AClientWrapper:
             files: Optional list of (filename, file_bytes, mime_type) tuples.
             context_id: Conversation context for multi-turn.
             task_id: Existing task to continue.
-            metadata: Optional message-level metadata (e.g., {"skill": "skill-id"} for routing).
+            metadata: Optional message-level metadata
+                (e.g., {"skill": "skill-id"} for routing).
 
         Yields:
             A2AStreamEvent with status updates and artifact updates.
@@ -882,7 +889,11 @@ class A2AClientWrapper:
         client = await self._ensure_client()
 
         message = _build_message(
-            input, files=files, context_id=context_id, task_id=task_id, metadata=metadata
+            input,
+            files=files,
+            context_id=context_id,
+            task_id=task_id,
+            metadata=metadata,
         )
         request = SendStreamingMessageRequest(
             id=str(uuid4()),

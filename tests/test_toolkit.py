@@ -1,4 +1,4 @@
-"""Tests for langchain_a2a_adapters.toolkit."""
+"""Tests for a2a_langchain_adapters.toolkit."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from langchain_a2a_adapters.toolkit import A2AToolkit
+from a2a_langchain_adapters.toolkit import A2AToolkit
 
 # ============================================================================
 # A2AToolkit factory methods
@@ -19,7 +19,7 @@ class TestA2AToolkitFactory:
     @pytest.mark.asyncio
     async def test_from_agent_urls_single_agent_success(self, agent_card):
         """Successfully load a single agent."""
-        with patch("langchain_a2a_adapters.toolkit.A2ARunnable") as MockRunnable:
+        with patch("a2a_langchain_adapters.toolkit.A2ARunnable") as MockRunnable:
             mock_runnable = AsyncMock()
             mock_runnable.agent_card = agent_card
             MockRunnable.from_agent_url = AsyncMock(return_value=mock_runnable)
@@ -37,7 +37,7 @@ class TestA2AToolkitFactory:
         self, agent_card, agent_card_no_skills
     ):
         """Successfully load multiple agents."""
-        with patch("langchain_a2a_adapters.toolkit.A2ARunnable") as MockRunnable:
+        with patch("a2a_langchain_adapters.toolkit.A2ARunnable") as MockRunnable:
             mock_runnable1 = AsyncMock()
             mock_runnable1.agent_card = agent_card
             mock_runnable2 = AsyncMock()
@@ -62,7 +62,7 @@ class TestA2AToolkitFactory:
     @pytest.mark.asyncio
     async def test_from_agent_urls_with_custom_timeout(self, agent_card):
         """Pass custom timeout to agent discovery."""
-        with patch("langchain_a2a_adapters.toolkit.A2ARunnable") as MockRunnable:
+        with patch("a2a_langchain_adapters.toolkit.A2ARunnable") as MockRunnable:
             mock_runnable = AsyncMock()
             mock_runnable.agent_card = agent_card
             MockRunnable.from_agent_url = AsyncMock(return_value=mock_runnable)
@@ -80,7 +80,7 @@ class TestA2AToolkitFactory:
     async def test_from_agent_urls_with_custom_headers(self, agent_card):
         """Pass custom headers to agent discovery."""
         headers = {"Authorization": "Bearer token123"}
-        with patch("langchain_a2a_adapters.toolkit.A2ARunnable") as MockRunnable:
+        with patch("a2a_langchain_adapters.toolkit.A2ARunnable") as MockRunnable:
             mock_runnable = AsyncMock()
             mock_runnable.agent_card = agent_card
             MockRunnable.from_agent_url = AsyncMock(return_value=mock_runnable)
@@ -98,7 +98,7 @@ class TestA2AToolkitFactory:
     @pytest.mark.asyncio
     async def test_from_agent_urls_partial_failure(self, agent_card):
         """Handle partial failures gracefully."""
-        with patch("langchain_a2a_adapters.toolkit.A2ARunnable") as MockRunnable:
+        with patch("a2a_langchain_adapters.toolkit.A2ARunnable") as MockRunnable:
             mock_runnable = AsyncMock()
             mock_runnable.agent_card = agent_card
 
@@ -121,7 +121,7 @@ class TestA2AToolkitFactory:
     @pytest.mark.asyncio
     async def test_from_agent_urls_all_failures(self):
         """Handle case where all agent discoveries fail."""
-        with patch("langchain_a2a_adapters.toolkit.A2ARunnable") as MockRunnable:
+        with patch("a2a_langchain_adapters.toolkit.A2ARunnable") as MockRunnable:
             MockRunnable.from_agent_url = AsyncMock(
                 side_effect=Exception("Connection failed")
             )
@@ -366,7 +366,7 @@ class TestA2AToolkitIntegration:
     @pytest.mark.asyncio
     async def test_toolkit_workflow(self, agent_card):
         """Complete workflow: load, retrieve, and use agents."""
-        with patch("langchain_a2a_adapters.toolkit.A2ARunnable") as MockRunnable:
+        with patch("a2a_langchain_adapters.toolkit.A2ARunnable") as MockRunnable:
             # Setup
             mock_runnable = AsyncMock()
             mock_runnable.agent_card = agent_card
@@ -406,7 +406,7 @@ class TestA2AToolkitIntegration:
     @pytest.mark.asyncio
     async def test_toolkit_duplicate_agent_names(self, agent_card):
         """Handle case with duplicate agent names (last wins)."""
-        with patch("langchain_a2a_adapters.toolkit.A2ARunnable") as MockRunnable:
+        with patch("a2a_langchain_adapters.toolkit.A2ARunnable") as MockRunnable:
             # Create two agents with the same name
             mock_runnable1 = MagicMock()
             mock_runnable1.agent_card = agent_card
@@ -434,8 +434,8 @@ class TestA2AToolkitIntegration:
     async def test_toolkit_logging_on_load(self, agent_card):
         """Verify logging on successful agent load."""
         with (
-            patch("langchain_a2a_adapters.toolkit.A2ARunnable") as MockRunnable,
-            patch("langchain_a2a_adapters.toolkit.logger") as mock_logger,
+            patch("a2a_langchain_adapters.toolkit.A2ARunnable") as MockRunnable,
+            patch("a2a_langchain_adapters.toolkit.logger") as mock_logger,
         ):
             mock_runnable = MagicMock()
             mock_runnable.agent_card = agent_card
@@ -450,8 +450,8 @@ class TestA2AToolkitIntegration:
     async def test_toolkit_logging_on_failure(self):
         """Verify logging on agent load failure."""
         with (
-            patch("langchain_a2a_adapters.toolkit.A2ARunnable") as MockRunnable,
-            patch("langchain_a2a_adapters.toolkit.logger") as mock_logger,
+            patch("a2a_langchain_adapters.toolkit.A2ARunnable") as MockRunnable,
+            patch("a2a_langchain_adapters.toolkit.logger") as mock_logger,
         ):
             MockRunnable.from_agent_url = AsyncMock(
                 side_effect=Exception("Network error")

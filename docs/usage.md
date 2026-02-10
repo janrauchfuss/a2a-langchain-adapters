@@ -1,6 +1,6 @@
 # Usage Guide
 
-Comprehensive patterns and examples for using `langchain-a2a-adapters` in your applications.
+Comprehensive patterns and examples for using `a2a-langchain-adapters` in your applications.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ For long-running or verbose tasks, stream responses in real-time:
 
 ```python
 import asyncio
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def main():
     agent = await A2ARunnable.from_agent_url("http://localhost:8080")
@@ -46,7 +46,7 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from langchain_a2a_adapters import A2ARunnable, A2ATimeoutError
+from a2a_langchain_adapters import A2ARunnable, A2ATimeoutError
 
 async def main():
     agent = await A2ARunnable.from_agent_url("http://localhost:8080")
@@ -92,7 +92,7 @@ A2A agents maintain conversation context. Build stateful dialogues:
 
 ```python
 import asyncio
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def main():
     agent = await A2ARunnable.from_agent_url("http://localhost:8080")
@@ -127,7 +127,7 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def chatbot_session(agent_url: str):
     """Simple chatbot with multi-turn context."""
@@ -164,7 +164,7 @@ asyncio.run(chatbot_session("http://localhost:8080"))
 
 ```python
 import asyncio
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def parallel_conversations():
     """Maintain multiple independent conversations."""
@@ -197,7 +197,7 @@ Send and receive JSON payloads, not just text:
 ```python
 import asyncio
 import json
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def main():
     agent = await A2ARunnable.from_agent_url("http://localhost:8080")
@@ -287,7 +287,7 @@ Upload and download files with agents:
 ```python
 import asyncio
 from pathlib import Path
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def upload_file():
     agent = await A2ARunnable.from_agent_url("http://localhost:8080")
@@ -385,7 +385,7 @@ Integrate an A2A agent into an LLM's function-calling workflow:
 ```python
 import asyncio
 from langchain_openai import ChatOpenAI
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def main():
     agent = await A2ARunnable.from_agent_url("http://localhost:8080")
@@ -409,7 +409,7 @@ asyncio.run(main())
 ### Multiple Agents as Tools
 
 ```python
-from langchain_a2a_adapters import A2AToolkit
+from a2a_langchain_adapters import A2AToolkit
 from langchain_openai import ChatOpenAI
 
 async def main():
@@ -441,7 +441,7 @@ Use A2ARunnable directly in LangChain chains:
 
 ```python
 from langchain_core.runnables import RunnableSequence
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def main():
     agent = await A2ARunnable.from_agent_url("http://localhost:8080")
@@ -465,7 +465,7 @@ asyncio.run(main())
 
 ```python
 from langgraph.graph import StateGraph
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 from typing import TypedDict
 
 class State(TypedDict):
@@ -501,7 +501,7 @@ A2A operations can fail for various reasons. Handle errors gracefully:
 
 ```python
 import asyncio
-from langchain_a2a_adapters import (
+from a2a_langchain_adapters import (
     A2ARunnable,
     A2AConnectionError,
     A2ATimeoutError,
@@ -535,7 +535,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from typing import TypeVar, Callable, Any
-from langchain_a2a_adapters import A2ARunnable, A2ATimeoutError
+from a2a_langchain_adapters import A2ARunnable, A2ATimeoutError
 
 T = TypeVar("T")
 
@@ -595,7 +595,7 @@ async def resilient_query():
 Always close agents when done:
 
 ```python
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def main():
     agent = await A2ARunnable.from_agent_url("http://localhost:8080")
@@ -683,7 +683,7 @@ import logging
 
 # Enable debug logging
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger("langchain_a2a_adapters")
+logger = logging.getLogger("a2a_langchain_adapters")
 logger.setLevel(logging.DEBUG)
 
 # Now all A2A operations will be logged
@@ -741,5 +741,5 @@ async def concurrent_queries():
 ## See Also
 
 - **[Configuration](./configuration.md)** — Authentication, transport, and tuning
-- **[Concepts](./concept-langchain-a2a-adapters.md)** — Architecture and design
+- **[Concepts](./concept-a2a-langchain-adapters.md)** — Architecture and design
 - **[Getting Started](./getting-started.md)** — Installation and quick start

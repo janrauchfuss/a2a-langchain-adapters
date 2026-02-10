@@ -15,9 +15,9 @@ from a2a.types import (
     TextPart,
 )
 
-from langchain_a2a_adapters import A2ARunnable, A2AStreamEvent
-from langchain_a2a_adapters.client_wrapper import A2AClientWrapper
-from langchain_a2a_adapters.exceptions import A2ATaskNotFoundError
+from a2a_langchain_adapters import A2ARunnable, A2AStreamEvent
+from a2a_langchain_adapters.client_wrapper import A2AClientWrapper
+from a2a_langchain_adapters.exceptions import A2ATaskNotFoundError
 
 
 class TestResubscribeTask:

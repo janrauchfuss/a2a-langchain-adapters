@@ -1,6 +1,6 @@
 # Documentation
 
-Welcome to the **LangChain A2A Adapters** documentation. This guide will help you integrate A2A protocol agents into your LangChain/LangGraph applications with full support for streaming, multi-turn conversations, and structured data.
+Welcome to the **A2A LangChain Adapters** documentation. This guide will help you integrate A2A protocol agents into your LangChain/LangGraph applications with full support for streaming, multi-turn conversations, and structured data.
 
 ---
 
@@ -20,17 +20,17 @@ Welcome to the **LangChain A2A Adapters** documentation. This guide will help yo
 
 ```bash
 # Basic (HTTP only)
-pip install langchain-a2a-adapters
+pip install a2a-langchain-adapters
 
 # With gRPC support
-pip install langchain-a2a-adapters[grpc]
+pip install a2a-langchain-adapters[grpc]
 ```
 
 ### 2. Connect to your first agent
 
 ```python
 import asyncio
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def main():
     # Connect to an A2A-compliant agent
@@ -123,7 +123,7 @@ Check [Configuration Reference](./configuration.md) for:
 
 ## 🔗 Related Resources
 
-- **GitHub Repository**: [langchain-a2a-adapters](https://github.com/janrauchfuss/langchain-a2a-adapters)
+- **GitHub Repository**: [a2a-langchain-adapters](https://github.com/janrauchfuss/a2a-langchain-adapters)
 - **A2A Protocol**: [A2A Project](https://github.com/a2aproject)
 - **LangChain Docs**: [LangChain Documentation](https://python.langchain.com)
 - **Sample Agent**: [A2A Sample Agent](https://github.com/a2aproject/a2a-sample-agent)
@@ -135,10 +135,10 @@ Check [Configuration Reference](./configuration.md) for:
 1. **New to the library?** → Start with [Getting Started](./getting-started.md)
 2. **Ready to build?** → Explore [Usage Guide](./usage.md)
 3. **Need to configure?** → Check [Configuration Reference](./configuration.md)
-4. **Found a problem?** → Submit an issue on [GitHub](https://github.com/janrauchfuss/langchain-a2a-adapters/issues)
+4. **Found a problem?** → Submit an issue on [GitHub](https://github.com/janrauchfuss/a2a-langchain-adapters/issues)
 
 ---
 
 ## 📝 Document Version
 
-This documentation is for **langchain-a2a-adapters**. See [PyPI](https://pypi.org/project/langchain-a2a-adapters/) for version history.
+This documentation is for **a2a-langchain-adapters**. See [PyPI](https://pypi.org/project/a2a-langchain-adapters/) for version history.

@@ -1,4 +1,4 @@
-"""Tests for langchain_a2a_adapters.runnable."""
+"""Tests for a2a_langchain_adapters.runnable."""
 
 from __future__ import annotations
 
@@ -8,14 +8,11 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from langchain_core.tools import ToolException
 
-from langchain_a2a_adapters.runnable import A2ARunnable
-from langchain_a2a_adapters.types import A2AResult
+from a2a_langchain_adapters.runnable import A2ARunnable
+from a2a_langchain_adapters.types import A2AResult, A2AStreamEvent
 
 from .conftest import (
-    make_data_part,
-    make_streaming_artifact_event,
     make_streaming_status_event,
-    make_text_part,
 )
 
 # ============================================================================
@@ -30,7 +27,7 @@ class TestA2ARunnableFactory:
     async def test_from_agent_url_success(self, agent_card):
         """Successfully create A2ARunnable from agent URL."""
         # Mock the client wrapper
-        with patch("langchain_a2a_adapters.runnable.A2AClientWrapper") as MockWrapper:
+        with patch("a2a_langchain_adapters.runnable.A2AClientWrapper") as MockWrapper:
             mock_wrapper_instance = AsyncMock()
             mock_wrapper_instance.agent_card = agent_card
             mock_wrapper_instance.get_agent_card = AsyncMock(return_value=agent_card)
@@ -54,7 +51,7 @@ class TestA2ARunnableFactory:
     @pytest.mark.asyncio
     async def test_from_agent_url_with_timeout(self, agent_card):
         """Create A2ARunnable with custom timeout."""
-        with patch("langchain_a2a_adapters.runnable.A2AClientWrapper") as MockWrapper:
+        with patch("a2a_langchain_adapters.runnable.A2AClientWrapper") as MockWrapper:
             mock_wrapper_instance = AsyncMock()
             mock_wrapper_instance.agent_card = agent_card
             mock_wrapper_instance.get_agent_card = AsyncMock(return_value=agent_card)
@@ -75,7 +72,7 @@ class TestA2ARunnableFactory:
     async def test_from_agent_url_with_headers(self, agent_card):
         """Create A2ARunnable with custom headers."""
         headers = {"Authorization": "Bearer token123"}
-        with patch("langchain_a2a_adapters.runnable.A2AClientWrapper") as MockWrapper:
+        with patch("a2a_langchain_adapters.runnable.A2AClientWrapper") as MockWrapper:
             mock_wrapper_instance = AsyncMock()
             mock_wrapper_instance.agent_card = agent_card
             mock_wrapper_instance.get_agent_card = AsyncMock(return_value=agent_card)
@@ -164,8 +161,29 @@ class TestA2ARunnableInvoke:
         )
 
     @pytest.mark.asyncio
-    async def test_ainvoke_passes_kwargs(self, client_wrapper):
-        """ainvoke passes through kwargs to send_message."""
+    async def test_ainvoke_passes_a2a_kwargs(self, client_wrapper):
+        """ainvoke forwards A2A-supported kwargs (task_id) to send_message."""
+        runnable = A2ARunnable(client_wrapper)
+        expected_result = A2AResult(
+            text="Response",
+            task_id="task123",
+            context_id="ctx456",
+            status="completed",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        await runnable.ainvoke("Hello", task_id="task123")
+
+        client_wrapper.send_message.assert_called_once_with(
+            "Hello",
+            files=None,
+            context_id=None,
+            task_id="task123",
+        )
+
+    @pytest.mark.asyncio
+    async def test_ainvoke_filters_unsupported_kwargs(self, client_wrapper):
+        """ainvoke filters out non-A2A kwargs instead of forwarding them."""
         runnable = A2ARunnable(client_wrapper)
         expected_result = A2AResult(
             text="Response",
@@ -177,13 +195,39 @@ class TestA2ARunnableInvoke:
 
         await runnable.ainvoke("Hello", timeout=60.0, custom_param="value")
 
+        # Only A2A kwargs should reach send_message — not timeout or custom_param
         client_wrapper.send_message.assert_called_once_with(
             "Hello",
             files=None,
             context_id=None,
-            timeout=60.0,
-            custom_param="value",
         )
+
+    @pytest.mark.asyncio
+    async def test_ainvoke_with_metadata_forwarded(self, client_wrapper):
+        """BUG-A2 FIX: metadata kwarg must forward to send_message.
+
+        The Director Agent passes metadata={"skill": skill_id} to ainvoke()
+        for skill routing. This was previously rejected; now it's forwarded
+        properly to send_message() for routing to specific agent skills.
+        """
+        runnable = A2ARunnable(client_wrapper)
+        expected_result = A2AResult(
+            text="ok",
+            task_id="t1",
+            context_id="c1",
+            status="completed",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        result = await runnable.ainvoke(
+            {"text": "test"}, metadata={"skill": "jailbreak-check"}
+        )
+
+        assert result.text == "ok"
+        # metadata MUST appear in send_message call for skill routing
+        call_kwargs = client_wrapper.send_message.call_args.kwargs
+        assert "metadata" in call_kwargs
+        assert call_kwargs["metadata"] == {"skill": "jailbreak-check"}
 
     def test_invoke_exists(self):
         """invoke method exists and accepts input and config."""
@@ -206,19 +250,19 @@ class TestA2ARunnableStream:
 
     @pytest.mark.asyncio
     async def test_astream_text_events(self, client_wrapper):
-        """astream yields text-only artifact events."""
+        """astream yields text-only artifact events (BUG-A1 fix)."""
         runnable = A2ARunnable(client_wrapper)
 
-        # Mock streaming response with text artifact
-        text_part = make_text_part("streaming text")
-        artifact_event = make_streaming_artifact_event(
-            [text_part],
+        # After BUG-A1 fix, stream_message() yields A2AStreamEvent, not raw SDK events
+        stream_event = A2AStreamEvent(
+            kind="artifact-update",
             task_id="task1",
             context_id="ctx1",
+            text="streaming text",
         )
 
         async def mock_stream(*args, **kwargs):
-            yield artifact_event.root.result  # type: ignore[union-attr]
+            yield stream_event
 
         client_wrapper.stream_message = mock_stream
 
@@ -233,17 +277,19 @@ class TestA2ARunnableStream:
 
     @pytest.mark.asyncio
     async def test_astream_data_events(self, client_wrapper):
-        """astream yields structured data from DataParts."""
+        """astream yields structured data from DataParts (BUG-A1 fix)."""
         runnable = A2ARunnable(client_wrapper)
 
-        data_part = make_data_part({"result": "analysis"})
-        artifact_event = make_streaming_artifact_event(
-            [data_part],
+        # After BUG-A1 fix, stream_message() yields A2AStreamEvent with extracted data
+        stream_event = A2AStreamEvent(
+            kind="artifact-update",
             task_id="task1",
+            context_id="ctx1",
+            data=[{"result": "analysis"}],
         )
 
         async def mock_stream(*args, **kwargs):
-            yield artifact_event.root.result  # type: ignore[union-attr]
+            yield stream_event
 
         client_wrapper.stream_message = mock_stream
 
@@ -257,16 +303,27 @@ class TestA2ARunnableStream:
 
     @pytest.mark.asyncio
     async def test_astream_mixed_events(self, client_wrapper):
-        """astream handles artifact and status events in sequence."""
+        """astream handles artifact and status events in sequence (BUG-A1 fix)."""
         runnable = A2ARunnable(client_wrapper)
 
-        text_part = make_text_part("hello")
-        artifact = make_streaming_artifact_event([text_part], task_id="t1")
-        status = make_streaming_status_event(task_id="t1", final=True)
+        # After BUG-A1 fix, stream_message() yields A2AStreamEvent for both types
+        artifact_event = A2AStreamEvent(
+            kind="artifact-update",
+            task_id="t1",
+            context_id="ctx1",
+            text="hello",
+        )
+        status_event = A2AStreamEvent(
+            kind="status-update",
+            task_id="t1",
+            context_id="ctx1",
+            status="completed",
+            final=True,
+        )
 
         async def mock_stream(*args, **kwargs):
-            yield artifact.root.result  # type: ignore[union-attr]
-            yield status.root.result  # type: ignore[union-attr]
+            yield artifact_event
+            yield status_event
 
         client_wrapper.stream_message = mock_stream
 
@@ -275,6 +332,37 @@ class TestA2ARunnableStream:
         assert len(events) == 2
         assert events[0].kind == "artifact-update"
         assert events[1].kind == "status-update"
+
+    @pytest.mark.asyncio
+    async def test_astream_status_event_with_data(self, client_wrapper):
+        """BUG-1237: astream extracts DataPart from status-update message."""
+        runnable = A2ARunnable(client_wrapper)
+
+        # Create A2AStreamEvent directly (stream_message returns these)
+        status_event = A2AStreamEvent(
+            kind="status-update",
+            task_id="t1",
+            context_id="c1",
+            text="Search done",
+            data=[{"results": [{"id": 1}]}],
+            status="completed",
+            final=True,
+        )
+
+        async def mock_stream(*args, **kwargs):
+            yield status_event
+
+        client_wrapper.stream_message = mock_stream
+
+        events = []
+        async for event in runnable.astream("search"):
+            events.append(event)
+
+        assert len(events) == 1
+        assert events[0].kind == "status-update"
+        assert events[0].text == "Search done"
+        assert events[0].data == [{"results": [{"id": 1}]}]
+        assert events[0].final is True
 
     @pytest.mark.asyncio
     async def test_astream_with_context(self, client_wrapper):
@@ -411,6 +499,42 @@ class TestA2ARunnableTool:
         assert tool.name == "a2a_agent"
         assert tool.description == "Interact with A2A agent"
 
+    def test_as_tool_has_args_schema_for_bind_tools(self, client_wrapper):
+        """as_tool must define args_schema so LLMs can generate tool calls.
+
+        Without args_schema, model.bind_tools([tool]) cannot produce a
+        valid function-calling schema and the LLM silently ignores the tool.
+        Regression test for the missing args_schema bug.
+        """
+        from langchain_core.utils.function_calling import convert_to_openai_function
+
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        # args_schema must be set
+        assert tool.args_schema is not None
+
+        # Must convert to a valid OpenAI function schema
+        schema = convert_to_openai_function(tool)
+        params = schema["parameters"]
+        assert "query" in params["properties"]
+        assert params["properties"]["query"]["type"] == "string"
+        assert "query" in params.get("required", [])
+
+    def test_as_tools_have_args_schema(self, client_wrapper, agent_card):
+        """Every tool from as_tools() must also carry args_schema."""
+        from langchain_core.utils.function_calling import convert_to_openai_function
+
+        runnable = A2ARunnable(client_wrapper)
+        tools = runnable.as_tools()
+
+        for tool in tools:
+            assert tool.args_schema is not None, (
+                f"Tool '{tool.name}' missing args_schema"
+            )
+            schema = convert_to_openai_function(tool)
+            assert "query" in schema["parameters"]["properties"]
+
     @pytest.mark.asyncio
     async def test_as_tool_execution_success(self, client_wrapper):
         """Tool execution calls runnable.ainvoke and returns text."""
@@ -489,6 +613,62 @@ class TestA2ARunnableTool:
         result = await tool._arun("query")
 
         assert result == ""
+
+    def test_tool_run_sync_context(self, client_wrapper):
+        """Tool's _run method works in pure sync context.
+
+        Regression test for: asyncio.run() cannot be called from a running event loop.
+        This verifies _run works correctly when called from sync code.
+        """
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            text="Response from sync",
+            task_id="task123",
+            status="completed",
+            context_id="ctx1",
+            data=[],
+            files=[],
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        # Call _run from sync context
+        result = tool._run("test query")
+
+        assert result == "Response from sync"
+        client_wrapper.send_message.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_tool_run_from_async_via_to_thread(self, client_wrapper):
+        """Tool's _run method works when called from async context via to_thread.
+
+        Regression test for: asyncio.run() cannot be called from a running event loop.
+        Simulates the pattern where director agents call tools asynchronously
+        using asyncio.to_thread() to call sync tool methods.
+        """
+        import asyncio
+
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            text="Response from async context",
+            task_id="task123",
+            status="completed",
+            context_id="ctx1",
+            data=[],
+            files=[],
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        # Simulate calling tool._run from within an async context
+        # This is the pattern used when a director agent invokes tools:
+        # await asyncio.to_thread(tool.invoke, ...)
+        result = await asyncio.to_thread(tool._run, "query from director")
+
+        assert result == "Response from async context"
+        client_wrapper.send_message.assert_called_once()
 
     def test_as_tools_with_skills(self, client_wrapper, agent_card):
         """as_tools creates one tool per skill."""
@@ -570,12 +750,16 @@ class TestA2ARunnableEdgeCases:
         """Multiple text parts are concatenated with newlines."""
         runnable = A2ARunnable(client_wrapper)
 
-        text1 = make_text_part("First part")
-        text2 = make_text_part("Second part")
-        artifact_event = make_streaming_artifact_event([text1, text2])
+        # Create A2AStreamEvent with concatenated text (stream_message does this)
+        artifact_event = A2AStreamEvent(
+            kind="artifact-update",
+            task_id="t1",
+            context_id="c1",
+            text="First part\nSecond part",
+        )
 
         async def mock_stream(*args, **kwargs):
-            yield artifact_event.root.result  # type: ignore[union-attr]
+            yield artifact_event
 
         client_wrapper.stream_message = mock_stream
 

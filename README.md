@@ -10,6 +10,10 @@ A production-ready Python package for integrating A2A protocol agents into LangC
 [![mypy](https://img.shields.io/badge/mypy-checked-success)](http://mypy-lang.org/)
 [![deptry](https://img.shields.io/badge/deptry-enabled-success)](https://github.com/fpgmaas/deptry)
 
+## 🎯 Why This Package?
+
+Integrating A2A protocol agents into LangChain/LangGraph required custom implementations each time. This package standardizes that pattern with a production-ready, well-tested solution. Currently in early release—feedback and contributions welcome.
+
 ## ✨ Features
 
 - **Agent-First Architecture**: `A2ARunnable` preserves full A2A protocol semantics (streaming, task lifecycle, multi-turn conversations)

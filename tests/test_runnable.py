@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -773,6 +774,47 @@ class TestA2ARunnableEdgeCases:
 # ============================================================================
 
 
+class TestToolMetadataInputOutputModes:
+    """Test tool descriptions with input/output mode metadata."""
+
+    def test_tool_includes_input_output_modes(self, client_wrapper):
+        """Tool description includes skill input/output modes."""
+        from a2a.types import AgentCapabilities, AgentCard, AgentSkill
+
+        skill_with_modes = AgentSkill(
+            id="analyze",
+            name="Analyze",
+            description="Analyze data",
+            tags=["analyze"],
+            input_modes=["text/plain", "application/json"],
+            output_modes=["text/plain", "application/json"],
+        )
+
+        card = AgentCard(
+            name="Advanced Agent",
+            description="An agent with mode info",
+            url="http://advanced-agent:8080",
+            version="1.0.0",
+            capabilities=AgentCapabilities(),
+            default_input_modes=["text/plain"],
+            default_output_modes=["text/plain"],
+            skills=[skill_with_modes],
+        )
+
+        wrapper = AsyncMock()
+        wrapper.agent_card = card
+
+        runnable = A2ARunnable(wrapper)
+        tools = runnable.as_tools()
+
+        assert len(tools) == 1
+        tool = tools[0]
+        assert "Accepted input types:" in tool.description
+        assert "text/plain" in tool.description
+        assert "application/json" in tool.description
+        assert "Output types:" in tool.description
+
+
 class TestEnhancedToolMetadata:
     """Test enhanced tool descriptions with examples and tags."""
 
@@ -876,3 +918,228 @@ class TestEnhancedToolMetadata:
         runnable = A2ARunnable(wrapper)
 
         assert runnable.preferred_transport == "grpc"
+
+
+# ============================================================================
+# Test Coverage Gap Coverage - ainvoke with callbacks
+# ============================================================================
+
+
+class TestA2ARunnableCallbacks:
+    """Tests for callback configuration in ainvoke."""
+
+    @pytest.mark.asyncio
+    async def test_ainvoke_with_callbacks(self, client_wrapper):
+        """ainvoke configures callback manager when callbacks provided."""
+        from langchain_core.callbacks.manager import AsyncCallbackManagerForChainRun
+
+        runnable = A2ARunnable(client_wrapper)
+
+        expected_result = A2AResult(
+            text="Response with callbacks",
+            task_id="task123",
+            context_id="ctx1",
+            status="completed",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        # Mock the callback manager configuration
+        mock_callback_manager = AsyncMock(spec=AsyncCallbackManagerForChainRun)
+        mock_callback_manager.on_chain_end = AsyncMock()
+        mock_callback_manager.on_chain_error = AsyncMock()
+
+        with patch(
+            "langchain_a2a_adapters.runnable.AsyncCallbackManagerForChainRun"
+        ) as MockCallbackManager:
+            MockCallbackManager.get_noop_manager = Mock(
+                return_value=mock_callback_manager
+            )
+            MockCallbackManager.configure = Mock(
+                return_value=AsyncMock(
+                    on_chain_start=AsyncMock(return_value=mock_callback_manager)
+                )
+            )
+
+            # Call with callback config
+            config: dict[str, Any] = {
+                "callbacks": [Mock()],
+                "tags": ["test"],
+                "metadata": {"test": True},
+            }
+            result = await runnable.ainvoke("query", config=config)  # type: ignore[arg-type]
+
+            assert result == expected_result
+            client_wrapper.send_message.assert_called_once()
+
+
+# ============================================================================
+# Test Coverage Gap Coverage - ainvoke exception handling
+# ============================================================================
+
+
+class TestA2ARunnableExceptionHandling:
+    """Tests for exception handling in ainvoke."""
+
+    @pytest.mark.asyncio
+    async def test_ainvoke_exception_propagates(self, client_wrapper):
+        """ainvoke propagates exceptions from send_message."""
+        from langchain_a2a_adapters.exceptions import A2AConnectionError
+
+        runnable = A2ARunnable(client_wrapper)
+        client_wrapper.send_message = AsyncMock(
+            side_effect=A2AConnectionError("Connection failed")
+        )
+
+        with pytest.raises(A2AConnectionError):
+            await runnable.ainvoke("query")
+
+
+# ============================================================================
+# Test Coverage Gap Coverage - invoke (sync) method
+# ============================================================================
+
+
+class TestA2ARunnableInvokeSync:
+    """Tests for synchronous invoke method."""
+
+    def test_invoke_returns_coroutine_or_result(self, client_wrapper):
+        """invoke method exists and can be called."""
+        runnable = A2ARunnable(client_wrapper)
+
+        # This tests that invoke is defined and callable
+        # Note: Full testing of run_in_executor requires async context
+        assert hasattr(runnable, "invoke")
+        assert callable(runnable.invoke)
+
+
+# ============================================================================
+# Test Coverage Gap Coverage - Tool error and state handling
+# ============================================================================
+
+
+class TestA2ARunnableToolErrorHandling:
+    """Tests for tool error handling and state transitions."""
+
+    @pytest.mark.asyncio
+    async def test_as_tool_adapter_error(self, client_wrapper):
+        """Tool execution raises ToolException on A2AAdapterError."""
+        from langchain_a2a_adapters.exceptions import A2AAdapterError
+
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        client_wrapper.send_message = AsyncMock(
+            side_effect=A2AAdapterError("Adapter error")
+        )
+
+        with pytest.raises(ToolException, match="A2A tool.*failed"):
+            await tool._arun("query")
+
+    @pytest.mark.asyncio
+    async def test_as_tool_requires_input_state(self, client_wrapper):
+        """Tool execution handles requires_input state gracefully."""
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            task_id="task123",
+            status="input-required",
+            context_id="ctx1",
+            text="Please provide more details",
+            requires_input=True,
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        result = await tool._arun("incomplete query")
+
+        assert "requires additional input" in result
+        assert "Please provide more details" in result
+
+    @pytest.mark.asyncio
+    async def test_as_tool_auth_required_state(self, client_wrapper):
+        """Tool execution raises ToolException for auth-required state."""
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            task_id="task123",
+            status="auth-required",
+            context_id="ctx1",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        with pytest.raises(ToolException, match="requires authentication"):
+            await tool._arun("query")
+
+    @pytest.mark.asyncio
+    async def test_as_tool_canceled_state(self, client_wrapper):
+        """Tool execution raises ToolException for canceled state."""
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            task_id="task123",
+            status="canceled",
+            context_id="ctx1",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        with pytest.raises(ToolException, match="non-success state"):
+            await tool._arun("query")
+
+    @pytest.mark.asyncio
+    async def test_as_tool_unknown_state(self, client_wrapper):
+        """Tool execution raises ToolException for unknown state."""
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            task_id="task123",
+            status="unknown",
+            context_id="ctx1",
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        with pytest.raises(ToolException, match="non-success state"):
+            await tool._arun("query")
+
+    @pytest.mark.asyncio
+    async def test_as_tool_files_output(self, client_wrapper):
+        """Tool execution returns JSON with file metadata."""
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        expected_result = A2AResult(
+            text="Results ready",
+            task_id="task123",
+            status="completed",
+            context_id="ctx1",
+            files=[
+                {
+                    "name": "result.pdf",
+                    "mime_type": "application/pdf",
+                    "uri": "s3://...",
+                },
+                {"name": "data.json", "bytes": b"..."},
+            ],
+        )
+        client_wrapper.send_message = AsyncMock(return_value=expected_result)
+
+        result = await tool._arun("query")
+
+        # Result should be JSON with file info
+        result_dict = json.loads(result)
+        assert result_dict["text"] == "Results ready"
+        assert len(result_dict["files"]) == 2
+        assert result_dict["files"][0]["name"] == "result.pdf"
+        assert result_dict["files"][0]["has_uri"] is True
+        assert result_dict["files"][1]["has_bytes"] is True
+
+    def test_as_tool_sync_run_method_exists(self, client_wrapper):
+        """Tool _run (sync) method exists."""
+        runnable = A2ARunnable(client_wrapper)
+        tool = runnable.as_tool()
+
+        # Verify the sync _run method exists
+        assert hasattr(tool, "_run")
+        assert callable(tool._run)

@@ -112,7 +112,7 @@ def _extract_text_from_parts(parts: list[Part]) -> str:
 
 
 def _build_message(
-    input: A2AInput,
+    message_input: A2AInput,
     *,
     files: list[tuple[str, bytes, str]] | None = None,
     context_id: str | None = None,
@@ -128,7 +128,7 @@ def _build_message(
     - ``{"key": "value", ...}``: Plain dict → single DataPart
 
     Args:
-        input: Text string or dict payload(s).
+        message_input: Text string or dict payload(s).
         files: Optional list of (filename, file_bytes, mime_type) tuples.
         context_id: Conversation context for multi-turn.
         task_id: Existing task to continue.
@@ -143,26 +143,26 @@ def _build_message(
     """
     parts: list[Part] = []
 
-    if isinstance(input, str):
-        parts.append(Part(root=TextPart(text=input)))
-    elif isinstance(input, dict):
+    if isinstance(message_input, str):
+        parts.append(Part(root=TextPart(text=message_input)))
+    elif isinstance(message_input, dict):
         # Check for explicit text/data keys
-        has_text_key = "text" in input
-        has_data_key = "data" in input
+        has_text_key = "text" in message_input
+        has_data_key = "data" in message_input
 
         if has_text_key or has_data_key:
             # Explicit mixed-content format
             if has_text_key:
-                parts.append(Part(root=TextPart(text=input["text"])))
+                parts.append(Part(root=TextPart(text=message_input["text"])))
             if has_data_key:
-                data_val = input["data"]
+                data_val = message_input["data"]
                 # Handle list of dicts or single dict
                 items = data_val if isinstance(data_val, list) else [data_val]
                 for item in items:
                     parts.append(Part(root=DataPart(data=item)))
         else:
             # Plain dict without text/data keys → single DataPart
-            parts.append(Part(root=DataPart(data=input)))
+            parts.append(Part(root=DataPart(data=message_input)))
 
     # Add file parts
     if files:
@@ -361,6 +361,7 @@ class A2AClientWrapper:
         return self._agent_card
 
     async def get_agent_card(self) -> AgentCard:
+        """Fetch and return the agent card."""
         await self._ensure_client()
         assert self._agent_card is not None
         return self._agent_card
@@ -409,8 +410,8 @@ class A2AClientWrapper:
 
         return False
 
+    @staticmethod
     async def download_file(
-        self,
         file_uri: str,
         save_path: str | None = None,
     ) -> bytes:
@@ -438,7 +439,8 @@ class A2AClientWrapper:
 
         return content
 
-    def decode_file_bytes(self, file_data: dict[str, Any]) -> bytes:
+    @staticmethod
+    def decode_file_bytes(file_data: dict[str, Any]) -> bytes:
         """Decode base64 file bytes from A2AResult.
 
         Args:
@@ -513,7 +515,7 @@ class A2AClientWrapper:
 
     async def send_message(
         self,
-        input: A2AInput,
+        message_input: A2AInput,
         *,
         files: list[tuple[str, bytes, str]] | None = None,
         context_id: str | None = None,
@@ -523,7 +525,7 @@ class A2AClientWrapper:
         """Send a message to the A2A agent and return a structured result.
 
         Args:
-            input: Text string or structured dict payload.
+            message_input: Text string or structured dict payload.
             files: Optional list of (filename, file_bytes, mime_type) tuples.
             context_id: Conversation context for multi-turn.
             task_id: Existing task to continue.
@@ -546,7 +548,7 @@ class A2AClientWrapper:
                 input = {"query": input}
 
         # Check input modes if sending data
-        if isinstance(input, dict) and "data" in input:
+        if isinstance(message_input, dict) and "data" in message_input:
             self._check_input_modes(["application/json"])
 
         client = await self._ensure_client()
@@ -610,7 +612,8 @@ class A2AClientWrapper:
             status="unknown",
         )
 
-    def _task_to_result(self, task: Task) -> A2AResult:
+    @staticmethod
+    def _task_to_result(task: Task) -> A2AResult:
         """Convert an A2A Task to an A2AResult."""
         state = task.status.state.value
 
@@ -851,7 +854,7 @@ class A2AClientWrapper:
 
     async def stream_message(
         self,
-        input: A2AInput,
+        message_input: A2AInput,
         *,
         files: list[tuple[str, bytes, str]] | None = None,
         context_id: str | None = None,
@@ -863,7 +866,7 @@ class A2AClientWrapper:
         Yields A2AStreamEvent objects with extracted text and data.
 
         Args:
-            input: Text string or structured dict payload.
+            message_input: Text string or structured dict payload.
             files: Optional list of (filename, file_bytes, mime_type) tuples.
             context_id: Conversation context for multi-turn.
             task_id: Existing task to continue.
@@ -961,8 +964,7 @@ class A2AClientWrapper:
                 "A2A health check failed for %s", self._base_url, exc_info=True
             )
             return False
-        else:
-            return True
+        return True
 
     async def close(self) -> None:
         """Close the underlying HTTP client."""

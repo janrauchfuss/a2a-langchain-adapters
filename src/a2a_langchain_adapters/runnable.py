@@ -166,7 +166,7 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
 
     async def ainvoke(
         self,
-        input: A2AInput,
+        input: A2AInput,  # skipcq: PYL-R0201, PYL-W0622
         config: RunnableConfig | None = None,
         *,
         files: list[tuple[str, bytes, str]] | None = None,
@@ -213,7 +213,7 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
 
     def invoke(
         self,
-        input: A2AInput,
+        input: A2AInput,  # skipcq: PYL-R0201, PYL-W0622
         config: RunnableConfig | None = None,
         *,
         files: list[tuple[str, bytes, str]] | None = None,
@@ -259,7 +259,7 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
 
     async def astream(  # type: ignore[override]
         self,
-        input: A2AInput,
+        input: A2AInput,  # skipcq: PYL-W0622
         config: RunnableConfig | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[A2AStreamEvent]:
@@ -388,6 +388,8 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
             )
 
         class _A2ATool(BaseTool):
+            """LangChain BaseTool wrapper for A2A agent execution."""
+
             name: str = tool_name
             description: str = tool_description
             args_schema: type[BaseModel] = QueryInput
@@ -508,9 +510,8 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
 
             # Add examples if present (a2a-sdk 0.3.19+ feature)
             if hasattr(skill, "examples") and skill.examples:
-                examples_text = "\n\nExamples:\n"
-                for ex in skill.examples[:3]:  # Limit to 3 examples
-                    examples_text += f"- {ex}\n"
+                examples_lines = [f"- {ex}" for ex in skill.examples[:3]]
+                examples_text = "\n\nExamples:\n" + "\n".join(examples_lines) + "\n"
                 tool_desc += examples_text
 
             # Add tags if present

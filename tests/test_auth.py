@@ -453,3 +453,21 @@ class TestCredentialDataclasses:
         assert certs.client_cert_path == "/path/to/cert"
         assert certs.client_key_path == "/path/to/key"
         assert certs.ca_cert_path == "/path/to/ca"
+
+
+class TestAuthEdgeCases:
+    """Test edge cases in authentication."""
+
+    def test_bearer_token_creation(self):
+        """Test bearer token creation."""
+        token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature"
+        auth = BearerTokenCredentials(token=token)
+
+        assert auth.token == token
+
+    def test_auth_config_builder_pattern(self):
+        """Test auth config creation with builder pattern."""
+        config = A2AAuthConfig().add_bearer_token(token="test-token")
+
+        assert config.bearer_token is not None
+        assert config.bearer_token.token == "test-token"

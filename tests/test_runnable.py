@@ -1143,3 +1143,93 @@ class TestA2ARunnableToolErrorHandling:
         # Verify the sync _run method exists
         assert hasattr(tool, "_run")
         assert callable(tool._run)
+
+
+# ============================================================================
+# Edge cases and additional coverage
+# ============================================================================
+
+
+class TestRunnableEdgeCases:
+    """Test edge cases in A2ARunnable."""
+
+    @pytest.mark.asyncio
+    async def test_ainvoke_with_empty_response(self):
+        """Test ainvoke with empty message response."""
+        from a2a_langchain_adapters.client_wrapper import A2AClientWrapper
+
+        mock_client = AsyncMock(spec=A2AClientWrapper)
+        mock_client.agent_card = None
+        mock_client.send_message.return_value = A2AResult(
+            task_id="task-123",
+            context_id="ctx-456",
+            status="completed",
+            text=None,
+            data=[],
+            files=[],
+            artifacts=[],
+        )
+
+        runnable = A2ARunnable(client=mock_client)
+
+        result = await runnable.ainvoke("test")
+
+        assert result.status == "completed"
+        assert result.text is None
+
+    @pytest.mark.asyncio
+    async def test_astream_with_no_events(self):
+        """Test astream when no events are produced."""
+        from a2a_langchain_adapters.client_wrapper import A2AClientWrapper
+
+        mock_client = AsyncMock(spec=A2AClientWrapper)
+        mock_client.agent_card = None
+
+        async def empty_stream(*args, **kwargs):
+            return
+            yield  # Never actually yields
+
+        mock_client.stream_message = empty_stream
+
+        runnable = A2ARunnable(client=mock_client)
+
+        events = []
+        async for event in runnable.astream("test"):
+            events.append(event)
+
+        assert len(events) == 0
+
+    def test_with_context_immutability(self):
+        """Test that with_context returns new instance."""
+        from a2a_langchain_adapters.client_wrapper import A2AClientWrapper
+
+        mock_client = AsyncMock(spec=A2AClientWrapper)
+
+        runnable1 = A2ARunnable(client=mock_client)
+        runnable2 = runnable1.with_context(context_id="ctx-123")
+
+        # Should be different instances
+        assert runnable1 is not runnable2
+        assert runnable2._context_id == "ctx-123"
+        assert runnable1._context_id is None
+
+    @pytest.mark.asyncio
+    async def test_as_tool_with_no_skills(self):
+        """Test as_tools when agent has no skills."""
+        from unittest.mock import MagicMock
+
+        from a2a_langchain_adapters.client_wrapper import A2AClientWrapper
+
+        mock_client = AsyncMock(spec=A2AClientWrapper)
+        mock_card = MagicMock()
+        mock_card.skills = []
+        mock_card.name = "TestAgent"
+        mock_card.description = "Test"
+        mock_client.agent_card = mock_card
+
+        runnable = A2ARunnable(client=mock_client)
+
+        tools = runnable.as_tools()
+
+        # Should return at least the main agent tool
+        assert len(tools) >= 1

@@ -63,15 +63,15 @@ jobs:
         if: ${{ inputs.dry_run == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run semantic-release version --noop -v
+        run: uv run semantic-release version --noop
 
       - name: Semantic Release (publish)
         if: ${{ inputs.dry_run == 'false' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          uv run semantic-release version -v
-          uv run semantic-release publish -v
+          uv run semantic-release version
+          uv run semantic-release publish
 
       - name: Publish to PyPI
         if: ${{ inputs.dry_run == 'false' }}

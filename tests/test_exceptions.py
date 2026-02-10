@@ -2,7 +2,7 @@
 
 import pytest
 
-from langchain_a2a_adapters.exceptions import (
+from a2a_langchain_adapters.exceptions import (
     A2AAdapterError,
     A2AAuthRequiredError,
     A2ACapabilityError,

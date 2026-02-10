@@ -7,7 +7,6 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
-from langchain_core.callbacks import AsyncCallbackManagerForChainRun
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.runnables.config import ensure_config, run_in_executor
 from langchain_core.tools import BaseTool, ToolException
@@ -16,7 +15,6 @@ from .auth import A2AAuthConfig
 from .client_wrapper import (
     A2AClientWrapper,
     A2AInput,
-    _extract_parts,
 )
 from .exceptions import (
     A2AAdapterError,
@@ -26,6 +24,10 @@ from .exceptions import (
 from .types import A2AResult, A2AStreamEvent
 
 logger = logging.getLogger(__name__)
+
+# A2A protocol kwargs accepted by send_message / stream_message.
+# Everything else (e.g. LangChain metadata, tags) is filtered out.
+_A2A_SEND_KWARGS: frozenset[str] = frozenset({"context_id", "task_id", "metadata"})
 
 
 class A2ARunnable(Runnable[A2AInput, A2AResult]):
@@ -188,27 +190,21 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
         Maps to A2A ``message/send`` (blocking mode).
         """
         config = ensure_config(config)
-        callback_manager = AsyncCallbackManagerForChainRun.get_noop_manager()
 
-        if config.get("callbacks"):
-            callback_manager = await AsyncCallbackManagerForChainRun.configure(  # type: ignore[attr-defined]
-                config.get("callbacks"),
-                inheritable_tags=config.get("tags"),
-                inheritable_metadata=config.get("metadata"),
-            ).on_chain_start(
-                {"name": self._get_name()},
-                input,
+        # Separate A2A protocol kwargs from LangChain kwargs
+        a2a_kwargs = {k: v for k, v in kwargs.items() if k in _A2A_SEND_KWARGS}
+        unsupported = set(kwargs) - _A2A_SEND_KWARGS
+        if unsupported:
+            logger.debug(
+                "Ignoring non-A2A kwargs in ainvoke: %s "
+                "(use 'config' for LangChain metadata/tags)",
+                unsupported,
             )
 
-        try:
-            result = await self._client.send_message(
-                input, files=files, context_id=self._context_id, **kwargs
-            )
-            await callback_manager.on_chain_end(result.model_dump())
-            return result
-        except Exception as e:
-            await callback_manager.on_chain_error(e)
-            raise
+        result = await self._client.send_message(
+            input, files=files, context_id=self._context_id, **a2a_kwargs
+        )
+        return result
 
     def _get_name(self) -> str:
         """Return a descriptive name for tracing."""
@@ -242,13 +238,23 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
             A2ATimeoutError: If request times out.
             A2AProtocolError: If agent returns JSON-RPC error.
         """
+        # Filter kwargs before forwarding to ainvoke
+        a2a_kwargs = {k: v for k, v in kwargs.items() if k in _A2A_SEND_KWARGS}
+        unsupported = set(kwargs) - _A2A_SEND_KWARGS
+        if unsupported:
+            logger.debug(
+                "Ignoring non-A2A kwargs in invoke: %s "
+                "(use 'config' for LangChain metadata/tags)",
+                unsupported,
+            )
+
         return run_in_executor(  # type: ignore[return-value]
             config,
             self.ainvoke,
             input,
             config,
             files=files,
-            **kwargs,
+            **a2a_kwargs,
         )
 
     async def astream(  # type: ignore[override]
@@ -262,26 +268,20 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
         Maps to A2A ``message/stream``. Yields A2AStreamEvent objects
         with extracted text, structured data, and status information.
         """
+        # Filter to A2A-supported kwargs only
+        a2a_kwargs = {k: v for k, v in kwargs.items() if k in _A2A_SEND_KWARGS}
+        unsupported = set(kwargs) - _A2A_SEND_KWARGS
+        if unsupported:
+            logger.debug(
+                "Ignoring non-A2A kwargs in astream: %s "
+                "(use 'config' for LangChain metadata/tags)",
+                unsupported,
+            )
+
         async for event in self._client.stream_message(
-            input, context_id=self._context_id, **kwargs
+            input, context_id=self._context_id, **a2a_kwargs
         ):
-            if event.kind == "artifact-update":
-                texts, data_items, _ = _extract_parts(event.artifact.parts)
-                yield A2AStreamEvent(
-                    kind="artifact-update",
-                    task_id=event.task_id,
-                    context_id=event.context_id,
-                    text="\n".join(texts) if texts else None,
-                    data=data_items,
-                )
-            elif event.kind == "status-update":
-                yield A2AStreamEvent(
-                    kind="status-update",
-                    task_id=event.task_id,
-                    context_id=event.context_id,
-                    status=event.status.state.value,
-                    final=event.final,
-                )
+            yield event
 
     async def aresubscribe(
         self,
@@ -359,20 +359,58 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
             wait_exponential_jitter=True,
         )
 
-    def _make_tool(self, *, tool_name: str, tool_description: str) -> BaseTool:
-        """Create a single BaseTool with the given name/description."""
+    def _make_tool(
+        self,
+        *,
+        tool_name: str,
+        tool_description: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> BaseTool:
+        """Create a single BaseTool with the given name/description.
+
+        Args:
+            tool_name: Name for the tool.
+            tool_description: Description for the tool.
+            metadata: Optional message-level metadata (e.g., {"skill": "skill-id"}).
+        """
+        from pydantic import BaseModel, Field
+
         runnable = self
+
+        class QueryInput(BaseModel):
+            """Input schema for A2A tool."""
+
+            query: str = Field(
+                ..., description="The query or message to send to the agent"
+            )
+            data: dict[str, Any] | None = Field(
+                None, description="Structured data payload (alternative to query)"
+            )
 
         class _A2ATool(BaseTool):
             """LangChain BaseTool wrapper for A2A agent execution."""
 
             name: str = tool_name
             description: str = tool_description
+            args_schema: type[BaseModel] = QueryInput
 
-            async def _arun(self, query: str, **kwargs: Any) -> str:
-                """Execute the A2A agent asynchronously."""
+            async def _arun(
+                self, query: str, data: dict[str, Any] | None = None, **kwargs: Any
+            ) -> str:
                 try:
-                    result = await runnable.ainvoke(query)
+                    # Determine if agent expects DataPart input
+                    card = runnable._client.agent_card
+                    modes = card.default_input_modes if card else None
+                    expects_data = modes is not None and "application/json" in modes
+
+                    if expects_data:
+                        # Always send as DataPart — merge query into data dict
+                        input_data: A2AInput = {**(data or {}), "query": query}
+                    elif data:
+                        input_data = data
+                    else:
+                        input_data = query
+                    result = await runnable.ainvoke(input_data, metadata=metadata)
                 except A2AAdapterError as e:
                     # Map adapter exceptions to ToolException
                     raise ToolException(f"A2A tool '{self.name}' failed: {e}") from e
@@ -412,18 +450,36 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
                     }
                     return json.dumps(response)
 
-                # Prefer text, fall back to JSON-serialized data
+                # Prefer structured data (DataPart) over text for tool outputs
+                # This ensures search results etc. are returned even when
+                # a short streaming summary is also present
+                if result.data:
+                    # If both text and data, include text as context
+                    if result.text:
+                        return json.dumps({"answer": result.text, "data": result.data})
+                    return json.dumps(result.data)
                 if result.text:
                     return result.text
-                if result.data:
-                    return json.dumps(result.data)
                 return ""
 
-            def _run(self, query: str, **kwargs: Any) -> str:
-                """Execute the A2A agent synchronously."""
+            def _run(
+                self, query: str, data: dict[str, Any] | None = None, **kwargs: Any
+            ) -> str:
                 import asyncio
+                import concurrent.futures
 
-                return asyncio.run(self._arun(query, **kwargs))
+                async def run_async() -> str:
+                    return await self._arun(query, data=data, **kwargs)
+
+                try:
+                    # If in a running loop, use a thread executor
+                    asyncio.get_running_loop()
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, run_async())
+                        return future.result()
+                except RuntimeError:
+                    # No running loop, safe to use asyncio.run() directly
+                    return asyncio.run(run_async())
 
         return _A2ATool()
 
@@ -472,8 +528,15 @@ class A2ARunnable(Runnable[A2AInput, A2AResult]):
                 modes_str = ", ".join(skill.output_modes)
                 tool_desc += f"\n\nOutput types: {modes_str}"
 
+            # Build skill routing metadata
+            skill_metadata = {"skill": skill.id} if skill.id else None
+
             tools.append(
-                self._make_tool(tool_name=tool_name, tool_description=tool_desc)
+                self._make_tool(
+                    tool_name=tool_name,
+                    tool_description=tool_desc,
+                    metadata=skill_metadata,
+                )
             )
 
         return tools

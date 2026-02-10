@@ -23,7 +23,7 @@ jobs:
     uses: ./.github/workflows/_test.yml
     with:
       python-versions: '["3.13"]'
-      coverage_package: "langchain_a2a_adapters"
+      coverage_package: "a2a_langchain_adapters"
       coverage_python: "3.13"
 
   build:

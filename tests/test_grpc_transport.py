@@ -6,8 +6,8 @@ import contextlib
 
 import pytest
 
-from langchain_a2a_adapters import A2AAuthConfig, A2ARunnable
-from langchain_a2a_adapters.client_wrapper import A2AClientWrapper
+from a2a_langchain_adapters import A2AAuthConfig, A2ARunnable
+from a2a_langchain_adapters.client_wrapper import A2AClientWrapper
 
 
 class TestTransportConfiguration:

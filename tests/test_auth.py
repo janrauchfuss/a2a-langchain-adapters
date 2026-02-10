@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from langchain_a2a_adapters import (
+from a2a_langchain_adapters import (
     A2AAuthConfig,
     A2ARunnable,
     APIKeyCredentials,
@@ -18,7 +18,7 @@ from langchain_a2a_adapters import (
     BearerTokenCredentials,
     TLSCertificates,
 )
-from langchain_a2a_adapters.client_wrapper import A2AClientWrapper
+from a2a_langchain_adapters.client_wrapper import A2AClientWrapper
 
 
 class TestBearerTokenAuth:
@@ -331,7 +331,7 @@ class TestRunnableWithAuth:
             mock_client.get_agent_card = AsyncMock(return_value=agent_card)
 
             with patch(
-                "langchain_a2a_adapters.runnable.A2AClientWrapper"
+                "a2a_langchain_adapters.runnable.A2AClientWrapper"
             ) as MockWrapper:
                 wrapper_instance = AsyncMock(spec=A2AClientWrapper)
                 wrapper_instance.agent_card = agent_card
@@ -367,14 +367,14 @@ class TestRunnableWithAuth:
             skills=[],
         )
 
-        with patch("langchain_a2a_adapters.runnable.A2AClientWrapper") as MockWrapper:
+        with patch("a2a_langchain_adapters.runnable.A2AClientWrapper") as MockWrapper:
             wrapper_instance = MagicMock(spec=A2AClientWrapper)
             wrapper_instance.agent_card = agent_card
             wrapper_instance.get_agent_card = AsyncMock(return_value=agent_card)
             wrapper_instance.requires_mTLS = MagicMock(return_value=True)
             MockWrapper.return_value = wrapper_instance
 
-            with patch("langchain_a2a_adapters.runnable.logger") as mock_logger:
+            with patch("a2a_langchain_adapters.runnable.logger") as mock_logger:
                 await A2ARunnable.from_agent_url(
                     "https://test:8443",
                     auth=auth,
@@ -453,3 +453,21 @@ class TestCredentialDataclasses:
         assert certs.client_cert_path == "/path/to/cert"
         assert certs.client_key_path == "/path/to/key"
         assert certs.ca_cert_path == "/path/to/ca"
+
+
+class TestAuthEdgeCases:
+    """Test edge cases in authentication."""
+
+    def test_bearer_token_creation(self):
+        """Test bearer token creation."""
+        token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.signature"
+        auth = BearerTokenCredentials(token=token)
+
+        assert auth.token == token
+
+    def test_auth_config_builder_pattern(self):
+        """Test auth config creation with builder pattern."""
+        config = A2AAuthConfig().add_bearer_token(token="test-token")
+
+        assert config.bearer_token is not None
+        assert config.bearer_token.token == "test-token"

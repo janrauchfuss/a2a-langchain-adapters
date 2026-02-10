@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from langchain_a2a_adapters import A2AResult, A2ARunnable
-from langchain_a2a_adapters.client_wrapper import A2AClientWrapper
+from a2a_langchain_adapters import A2AResult, A2ARunnable
+from a2a_langchain_adapters.client_wrapper import A2AClientWrapper
 
 
 class TestFileUpload:
@@ -89,7 +89,7 @@ class TestFileDownload:
         """Download file from URI."""
         file_content = b"downloaded content"
 
-        with patch("langchain_a2a_adapters.client_wrapper.httpx") as mock_httpx:
+        with patch("a2a_langchain_adapters.client_wrapper.httpx") as mock_httpx:
             mock_response = AsyncMock()
             mock_response.content = file_content
             mock_response.raise_for_status = Mock()

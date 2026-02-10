@@ -1,4 +1,4 @@
-# Getting Started with LangChain A2A Adapters
+# Getting Started with A2A LangChain Adapters
 
 Get up and running with A2A agent integration in minutes.
 
@@ -15,25 +15,25 @@ Choose based on your transport needs:
 
 **HTTP only (recommended for most users):**
 ```bash
-pip install langchain-a2a-adapters
+pip install a2a-langchain-adapters
 ```
 
 **With gRPC support:**
 ```bash
-pip install langchain-a2a-adapters[grpc]
+pip install a2a-langchain-adapters[grpc]
 ```
 
 **Development mode:**
 ```bash
-git clone https://github.com/janrauchfuss/langchain-a2a-adapters.git
-cd langchain-a2a-adapters
+git clone https://github.com/janrauchfuss/a2a-langchain-adapters.git
+cd a2a-langchain-adapters
 pip install -e ".[grpc]"
 ```
 
 **Verify installation:**
 ```python
-import langchain_a2a_adapters
-print(langchain_a2a_adapters.__version__)
+import a2a_langchain_adapters
+print(a2a_langchain_adapters.__version__)
 ```
 
 ## Your First Query
@@ -42,7 +42,7 @@ The simplest way to use an A2A agent:
 
 ```python
 import asyncio
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 async def main():
     # Create a runnable by discovering the agent
@@ -71,5 +71,5 @@ That's it! What happens:
 
 - **[Usage Guide](./usage.md)** — Streaming, multi-turn conversations, structured data, file handling, LangChain integration, error handling
 - **[Configuration](./configuration.md)** — Authentication, transport selection, timeouts, logging
-- **[Concepts](./concept-langchain-a2a-adapters.md)** — Deep dive into design and architecture
+- **[Concepts](./concept-a2a-langchain-adapters.md)** — Deep dive into design and architecture
 - **[A2A Protocol Spec](https://github.com/a2aproject/A2A)** — Official specification

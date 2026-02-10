@@ -1,4 +1,4 @@
-"""Exception hierarchy for langchain-a2a-adapters.
+"""Exception hierarchy for a2a-langchain-adapters.
 
 Provides typed exceptions for A2A adapter errors, enabling programmatic
 error handling and retry strategies based on error type.
@@ -10,7 +10,7 @@ from typing import Any, NoReturn
 
 
 class A2AAdapterError(Exception):
-    """Base exception for all langchain-a2a-adapters errors.
+    """Base exception for all a2a-langchain-adapters errors.
 
     All A2A adapter exceptions inherit from this base class for easy
     catching and error handling. Supports optional cause chaining.

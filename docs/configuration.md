@@ -1,6 +1,6 @@
 # Configuration Guide
 
-Complete reference for configuring `langchain-a2a-adapters` for your environment.
+Complete reference for configuring `a2a-langchain-adapters` for your environment.
 
 ## Table of Contents
 
@@ -22,7 +22,7 @@ A2A agents often require authentication. The library supports multiple auth sche
 Use bearer tokens for OAuth2 and JWT-based authentication:
 
 ```python
-from langchain_a2a_adapters import A2ARunnable, A2AAuthConfig
+from a2a_langchain_adapters import A2ARunnable, A2AAuthConfig
 
 auth = A2AAuthConfig().add_bearer_token(
     token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -138,7 +138,7 @@ auth = (
 
 ```python
 import os
-from langchain_a2a_adapters import A2AAuthConfig
+from a2a_langchain_adapters import A2AAuthConfig
 
 # From environment variables
 api_key = os.getenv("A2A_API_KEY")
@@ -171,7 +171,7 @@ For production, use secure secrets management:
 ```python
 import os
 from pathlib import Path
-from langchain_a2a_adapters import A2AAuthConfig
+from a2a_langchain_adapters import A2AAuthConfig
 
 # Load token from secure file (e.g., from secrets volume)
 def load_token_from_secret() -> str:
@@ -193,7 +193,7 @@ Choose between HTTP and gRPC transports:
 HTTP is the default and most compatible transport:
 
 ```python
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 # Explicit HTTP (auto-detect by default)
 agent = await A2ARunnable.from_agent_url(
@@ -207,7 +207,7 @@ agent = await A2ARunnable.from_agent_url(
 Use gRPC for better performance with long-lived connections:
 
 ```python
-# Requires: pip install langchain-a2a-adapters[grpc]
+# Requires: pip install a2a-langchain-adapters[grpc]
 
 agent = await A2ARunnable.from_agent_url(
     "grpc://agent.example.com:50051",
@@ -256,7 +256,7 @@ Control how long requests can run:
 Set the overall request timeout:
 
 ```python
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 # Timeout for discovery and individual requests
 agent = await A2ARunnable.from_agent_url(
@@ -315,7 +315,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Or for just the A2A adapters
-logger = logging.getLogger("langchain_a2a_adapters")
+logger = logging.getLogger("a2a_langchain_adapters")
 logger.setLevel(logging.DEBUG)
 
 # Now use the agent
@@ -350,7 +350,7 @@ class JSONFormatter(logging.Formatter):
 
 handler = logging.StreamHandler()
 handler.setFormatter(JSONFormatter())
-logger = logging.getLogger("langchain_a2a_adapters")
+logger = logging.getLogger("a2a_langchain_adapters")
 logger.addHandler(handler)
 ```
 
@@ -359,7 +359,7 @@ logger.addHandler(handler)
 ```python
 import logging
 
-logger = logging.getLogger("langchain_a2a_adapters")
+logger = logging.getLogger("a2a_langchain_adapters")
 
 # Minimal logging (warnings and errors only)
 logger.setLevel(logging.WARNING)
@@ -381,13 +381,13 @@ At different levels:
 
 ```python
 # Example debug output
-# DEBUG:langchain_a2a_adapters.client_wrapper:
+# DEBUG:a2a_langchain_adapters.client_wrapper:
 #   Discovering agent at http://localhost:8080
-# DEBUG:langchain_a2a_adapters.client_wrapper:
+# DEBUG:a2a_langchain_adapters.client_wrapper:
 #   Agent card received: Calculator (skills: [add, multiply])
-# DEBUG:langchain_a2a_adapters.client_wrapper:
+# DEBUG:a2a_langchain_adapters.client_wrapper:
 #   Sending message: add (timeout=30.0s)
-# DEBUG:langchain_a2a_adapters.client_wrapper:
+# DEBUG:a2a_langchain_adapters.client_wrapper:
 #   Response received in 0.23s
 ```
 
@@ -396,7 +396,7 @@ At different levels:
 Add custom HTTP headers to all requests:
 
 ```python
-from langchain_a2a_adapters import A2AAuthConfig
+from a2a_langchain_adapters import A2AAuthConfig
 
 auth = (
     A2AAuthConfig()
@@ -458,7 +458,7 @@ agent = await A2ARunnable.from_agent_url(
 For self-signed certificates in development:
 
 ```python
-from langchain_a2a_adapters import A2AAuthConfig
+from a2a_langchain_adapters import A2AAuthConfig
 
 # Provide CA certificate for verification
 auth = A2AAuthConfig().add_tls_certificates(
@@ -564,7 +564,7 @@ print(result.text)
 For multiple agents, use a toolkit:
 
 ```python
-from langchain_a2a_adapters import A2AToolkit
+from a2a_langchain_adapters import A2AToolkit
 
 # Efficient: Toolkit manages multiple connections
 toolkit = await A2AToolkit.from_agent_urls([
@@ -588,7 +588,7 @@ For advanced HTTP customization, configure before instantiation:
 
 ```python
 import httpx
-from langchain_a2a_adapters import A2ARunnable
+from a2a_langchain_adapters import A2ARunnable
 
 # Create custom HTTP client with limits
 client = httpx.AsyncClient(
@@ -625,7 +625,7 @@ await agent.close()
 ```python
 import os
 from pathlib import Path
-from langchain_a2a_adapters import A2ARunnable, A2AAuthConfig
+from a2a_langchain_adapters import A2ARunnable, A2AAuthConfig
 
 # Load from environment
 agent_url = os.getenv("A2A_AGENT_URL", "http://localhost:8080")
@@ -656,7 +656,7 @@ await agent.close()
 ```python
 import json
 from pathlib import Path
-from langchain_a2a_adapters import A2ARunnable, A2AAuthConfig
+from a2a_langchain_adapters import A2ARunnable, A2AAuthConfig
 
 config_file = Path("a2a-config.json")
 config = json.loads(config_file.read_text())
@@ -686,4 +686,4 @@ agent = await A2ARunnable.from_agent_url(
 
 - **[Usage Guide](./usage.md)** — Practical patterns and examples
 - **[Getting Started](./getting-started.md)** — Quick start guide
-- **[Concepts](./concept-langchain-a2a-adapters.md)** — Architecture and design
+- **[Concepts](./concept-a2a-langchain-adapters.md)** — Architecture and design

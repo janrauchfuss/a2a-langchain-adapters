@@ -58,6 +58,12 @@ def _extract_parts(
 ) -> tuple[list[str], list[dict[str, Any]], list[dict[str, Any]]]:
     """Extract typed content from a list of A2A Parts.
 
+    Uses name-based type checking (``type().__name__``) instead of
+    ``isinstance()`` to handle version skew between different ``a2a-sdk``
+    installations.  When the adapter and a downstream agent pin different
+    SDK versions, ``isinstance()`` fails even though the objects are
+    structurally identical.
+
     Returns:
         (texts, data_items, file_items) — one list per Part kind.
     """
@@ -67,23 +73,32 @@ def _extract_parts(
 
     for part in parts:
         inner = part.root
-        if isinstance(inner, TextPart):
+        if inner is None:
+            continue
+
+        type_name = type(inner).__name__
+
+        if type_name == "TextPart" and hasattr(inner, "text"):
             texts.append(inner.text)
-        elif isinstance(inner, DataPart):
-            data_items.append(inner.data)
-        elif isinstance(inner, FilePart):
+        elif type_name == "DataPart" and hasattr(inner, "data"):
+            data = inner.data
+            if isinstance(data, dict):
+                data_items.append(data)
+        elif type_name == "FilePart" and hasattr(inner, "file"):
+            file_obj = inner.file
             file_info: dict[str, Any] = {}
-            if isinstance(inner.file, FileWithBytes):
+            # Name-based check for FileWithBytes vs FileWithUri
+            if hasattr(file_obj, "bytes") and file_obj.bytes is not None:
                 file_info = {
-                    "name": inner.file.name,
-                    "mime_type": inner.file.mime_type,
-                    "bytes": inner.file.bytes,
+                    "name": file_obj.name,
+                    "mime_type": file_obj.mime_type,
+                    "bytes": file_obj.bytes,
                 }
             else:
                 file_info = {
-                    "name": inner.file.name,
-                    "mime_type": inner.file.mime_type,
-                    "uri": inner.file.uri,
+                    "name": file_obj.name,
+                    "mime_type": file_obj.mime_type,
+                    "uri": file_obj.uri,
                 }
             file_items.append(file_info)
 
@@ -102,6 +117,7 @@ def _build_message(
     files: list[tuple[str, bytes, str]] | None = None,
     context_id: str | None = None,
     task_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> Message:
     """Build a proper A2A Message from string or structured input.
 
@@ -116,6 +132,8 @@ def _build_message(
         files: Optional list of (filename, file_bytes, mime_type) tuples.
         context_id: Conversation context for multi-turn.
         task_id: Existing task to continue.
+        metadata: Optional message-level metadata
+            (e.g., {"skill": "skill-id"} for routing).
 
     Returns:
         A2A Message with one or more Parts.
@@ -172,29 +190,39 @@ def _build_message(
         parts=parts,
         context_id=context_id,
         task_id=task_id,
+        metadata=metadata,
     )
 
 
 def _serialize_part(part: Part) -> dict[str, Any]:
-    """Serialize a Part to a plain dict for artifact storage."""
+    """Serialize a Part to a plain dict for artifact storage.
+
+    Uses name-based type checking for version-skew resilience.
+    """
     inner = part.root
-    if isinstance(inner, TextPart):
+    if inner is None:
+        return {"kind": "unknown", "value": "None"}
+
+    type_name = type(inner).__name__
+
+    if type_name == "TextPart" and hasattr(inner, "text"):
         return {"kind": "text", "text": inner.text}
-    if isinstance(inner, DataPart):
+    if type_name == "DataPart" and hasattr(inner, "data"):
         return {"kind": "data", "data": inner.data}
-    if isinstance(inner, FilePart):
-        if isinstance(inner.file, FileWithBytes):
+    if type_name == "FilePart" and hasattr(inner, "file"):
+        file_obj = inner.file
+        if hasattr(file_obj, "bytes") and file_obj.bytes is not None:
             return {
                 "kind": "file",
-                "name": inner.file.name,
-                "mime_type": inner.file.mime_type,
-                "bytes": inner.file.bytes,
+                "name": file_obj.name,
+                "mime_type": file_obj.mime_type,
+                "bytes": file_obj.bytes,
             }
         return {
             "kind": "file",
-            "name": inner.file.name,
-            "mime_type": inner.file.mime_type,
-            "uri": inner.file.uri,
+            "name": file_obj.name,
+            "mime_type": file_obj.mime_type,
+            "uri": file_obj.uri,
         }
     return {"kind": "unknown", "value": str(inner)}
 
@@ -281,7 +309,7 @@ class A2AClientWrapper:
             except ImportError as e:
                 raise ImportError(
                     "gRPC transport requires the 'grpc' extra. "
-                    "Install with: pip install langchain-a2a-adapters[grpc]"
+                    "Install with: pip install a2a-langchain-adapters[grpc]"
                 ) from e
 
         raise ValueError(
@@ -492,6 +520,7 @@ class A2AClientWrapper:
         files: list[tuple[str, bytes, str]] | None = None,
         context_id: str | None = None,
         task_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> A2AResult:
         """Send a message to the A2A agent and return a structured result.
 
@@ -500,6 +529,8 @@ class A2AClientWrapper:
             files: Optional list of (filename, file_bytes, mime_type) tuples.
             context_id: Conversation context for multi-turn.
             task_id: Existing task to continue.
+            metadata: Optional message-level metadata
+                (e.g., {"skill": "skill-id"} for routing).
 
         Returns:
             A2AResult with all Part types preserved.
@@ -509,6 +540,13 @@ class A2AClientWrapper:
             A2ATimeoutError: If request times out.
             A2AProtocolError: If agent returns JSON-RPC error.
         """
+        # Auto-wrap string input for DataPart-only agents
+        if isinstance(message_input, str):
+            modes = self._agent_card.default_input_modes if self._agent_card else None
+            if modes and "text/plain" not in modes:
+                # Agent only accepts structured input, wrap as query
+                message_input = {"query": message_input}
+
         # Check input modes if sending data
         if isinstance(message_input, dict) and "data" in message_input:
             self._check_input_modes(["application/json"])
@@ -516,7 +554,11 @@ class A2AClientWrapper:
         client = await self._ensure_client()
 
         message = _build_message(
-            message_input, files=files, context_id=context_id, task_id=task_id
+            message_input,
+            files=files,
+            context_id=context_id,
+            task_id=task_id,
+            metadata=metadata,
         )
         request = SendMessageRequest(
             id=str(uuid4()),
@@ -594,10 +636,25 @@ class A2AClientWrapper:
                 }
             )
 
-        # Extract text from status message if present
+        # Extract ALL part types from status message (not just text)
         status_text = None
         if task.status.message:
-            status_text = _extract_text_from_parts(task.status.message.parts)
+            texts, data_items, file_items = _extract_parts(task.status.message.parts)
+            status_text = "\n".join(texts) if texts else None
+            all_data.extend(data_items)
+            all_files.extend(file_items)
+
+        # Fallback: if no data in artifacts or status, check last agent
+        # message in history
+        if not all_data and task.history:
+            for msg in reversed(task.history):
+                if getattr(msg, "role", None) == "agent":
+                    _, data_items, file_items = _extract_parts(msg.parts)
+                    if data_items:
+                        all_data.extend(data_items)
+                        if not all_files:
+                            all_files.extend(file_items)
+                        break
 
         text = "\n".join(all_texts) if all_texts else status_text
 
@@ -742,6 +799,15 @@ class A2AClientWrapper:
             async for event in client.resubscribe(request):
                 # Convert SDK events to A2AStreamEvent
                 if isinstance(event, TaskStatusUpdateEvent):
+                    # Extract data/text from status message if present
+                    status_text = None
+                    status_data: list[dict[str, Any]] = []
+                    if event.status.message:
+                        texts, data_items, _ = _extract_parts(
+                            event.status.message.parts
+                        )
+                        status_text = "\n".join(texts) if texts else None
+                        status_data = data_items
                     yield A2AStreamEvent(
                         kind="status-update",
                         task_id=event.task_id,
@@ -749,6 +815,8 @@ class A2AClientWrapper:
                         status=event.status.state.value
                         if hasattr(event.status.state, "value")
                         else str(event.status.state),
+                        text=status_text,
+                        data=status_data,
                         final=event.final,
                     )
 
@@ -791,20 +859,22 @@ class A2AClientWrapper:
         files: list[tuple[str, bytes, str]] | None = None,
         context_id: str | None = None,
         task_id: str | None = None,
-    ) -> AsyncIterator[TaskStatusUpdateEvent | TaskArtifactUpdateEvent]:
+        metadata: dict[str, Any] | None = None,
+    ) -> AsyncIterator[A2AStreamEvent]:
         """Stream a message response via message/stream (SSE).
 
-        Yields properly typed streaming events. The caller should check
-        event.kind ('status-update' or 'artifact-update') and event.final.
+        Yields A2AStreamEvent objects with extracted text and data.
 
         Args:
             message_input: Text string or structured dict payload.
             files: Optional list of (filename, file_bytes, mime_type) tuples.
             context_id: Conversation context for multi-turn.
             task_id: Existing task to continue.
+            metadata: Optional message-level metadata
+                (e.g., {"skill": "skill-id"} for routing).
 
         Yields:
-            TaskStatusUpdateEvent or TaskArtifactUpdateEvent.
+            A2AStreamEvent with status updates and artifact updates.
 
         Raises:
             A2ACapabilityError: If agent does not support streaming.
@@ -812,10 +882,21 @@ class A2AClientWrapper:
         # Check capability before making request
         self._check_capability("streaming")
 
+        # Auto-wrap string input for DataPart-only agents
+        if isinstance(message_input, str):
+            modes = self._agent_card.default_input_modes if self._agent_card else None
+            if modes and "text/plain" not in modes:
+                # Agent only accepts structured input, wrap as query
+                message_input = {"query": message_input}
+
         client = await self._ensure_client()
 
         message = _build_message(
-            message_input, files=files, context_id=context_id, task_id=task_id
+            message_input,
+            files=files,
+            context_id=context_id,
+            task_id=task_id,
+            metadata=metadata,
         )
         request = SendStreamingMessageRequest(
             id=str(uuid4()),
@@ -830,10 +911,38 @@ class A2AClientWrapper:
                     _raise_for_rpc_error(root.error)
 
                 result = root.result
-                if isinstance(result, TaskStatusUpdateEvent | TaskArtifactUpdateEvent):
-                    yield result
-                    if isinstance(result, TaskStatusUpdateEvent) and result.final:
+                if isinstance(result, TaskStatusUpdateEvent):
+                    # Extract data/text from status message if present
+                    status_text = None
+                    status_data: list[dict[str, Any]] = []
+                    if result.status.message:
+                        texts, data_items, _ = _extract_parts(
+                            result.status.message.parts
+                        )
+                        status_text = "\n".join(texts) if texts else None
+                        status_data = data_items
+                    yield A2AStreamEvent(
+                        kind="status-update",
+                        task_id=result.task_id,
+                        context_id=result.context_id,
+                        status=result.status.state.value
+                        if hasattr(result.status.state, "value")
+                        else str(result.status.state),
+                        text=status_text,
+                        data=status_data,
+                        final=result.final,
+                    )
+                    if result.final:
                         return
+                elif isinstance(result, TaskArtifactUpdateEvent):
+                    texts, data_items, _ = _extract_parts(result.artifact.parts)
+                    yield A2AStreamEvent(
+                        kind="artifact-update",
+                        task_id=result.task_id,
+                        context_id=result.context_id,
+                        text="\n".join(texts) if texts else None,
+                        data=data_items,
+                    )
         except httpx.ConnectError as e:
             raise A2AConnectionError(
                 f"Failed to connect to A2A agent at {self._base_url}",

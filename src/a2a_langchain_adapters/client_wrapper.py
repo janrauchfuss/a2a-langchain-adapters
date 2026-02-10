@@ -541,11 +541,11 @@ class A2AClientWrapper:
             A2AProtocolError: If agent returns JSON-RPC error.
         """
         # Auto-wrap string input for DataPart-only agents
-        if isinstance(input, str):
+        if isinstance(message_input, str):
             modes = self._agent_card.default_input_modes if self._agent_card else None
             if modes and "text/plain" not in modes:
                 # Agent only accepts structured input, wrap as query
-                input = {"query": input}
+                message_input = {"query": message_input}
 
         # Check input modes if sending data
         if isinstance(message_input, dict) and "data" in message_input:
@@ -554,7 +554,7 @@ class A2AClientWrapper:
         client = await self._ensure_client()
 
         message = _build_message(
-            input,
+            message_input,
             files=files,
             context_id=context_id,
             task_id=task_id,
@@ -883,16 +883,16 @@ class A2AClientWrapper:
         self._check_capability("streaming")
 
         # Auto-wrap string input for DataPart-only agents
-        if isinstance(input, str):
+        if isinstance(message_input, str):
             modes = self._agent_card.default_input_modes if self._agent_card else None
             if modes and "text/plain" not in modes:
                 # Agent only accepts structured input, wrap as query
-                input = {"query": input}
+                message_input = {"query": message_input}
 
         client = await self._ensure_client()
 
         message = _build_message(
-            input,
+            message_input,
             files=files,
             context_id=context_id,
             task_id=task_id,

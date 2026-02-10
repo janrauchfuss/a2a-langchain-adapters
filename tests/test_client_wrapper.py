@@ -889,7 +889,7 @@ class TestMessageErrorHandling:
 
         from a2a.types import JSONRPCError, JSONRPCErrorResponse
 
-        from langchain_a2a_adapters.exceptions import A2AProtocolError
+        from a2a_langchain_adapters.exceptions import A2AProtocolError
 
         # Create a proper JSONRPCErrorResponse
         error = JSONRPCError(code=-32003, message="Invalid request")
@@ -978,7 +978,7 @@ class TestTaskOperationsErrorHandling:
 
         from a2a.types import JSONRPCError, JSONRPCErrorResponse
 
-        from langchain_a2a_adapters.exceptions import A2ATaskNotFoundError
+        from a2a_langchain_adapters.exceptions import A2ATaskNotFoundError
 
         error = JSONRPCError(code=-32001, message="Task not found")  # Task not found
         error_response = JSONRPCErrorResponse(jsonrpc="2.0", error=error, id="123")
@@ -998,7 +998,7 @@ class TestTaskOperationsErrorHandling:
 
         from a2a.types import JSONRPCError, JSONRPCErrorResponse
 
-        from langchain_a2a_adapters.exceptions import A2ATaskNotCancelableError
+        from a2a_langchain_adapters.exceptions import A2ATaskNotCancelableError
 
         error = JSONRPCError(
             code=-32002, message="Cannot cancel task"

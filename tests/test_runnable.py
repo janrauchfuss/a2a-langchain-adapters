@@ -949,7 +949,7 @@ class TestA2ARunnableCallbacks:
         mock_callback_manager.on_chain_error = AsyncMock()
 
         with patch(
-            "langchain_a2a_adapters.runnable.AsyncCallbackManagerForChainRun"
+            "langchain_core.callbacks.manager.AsyncCallbackManagerForChainRun"
         ) as MockCallbackManager:
             MockCallbackManager.get_noop_manager = Mock(
                 return_value=mock_callback_manager
@@ -983,7 +983,7 @@ class TestA2ARunnableExceptionHandling:
     @pytest.mark.asyncio
     async def test_ainvoke_exception_propagates(self, client_wrapper):
         """ainvoke propagates exceptions from send_message."""
-        from langchain_a2a_adapters.exceptions import A2AConnectionError
+        from a2a_langchain_adapters.exceptions import A2AConnectionError
 
         runnable = A2ARunnable(client_wrapper)
         client_wrapper.send_message = AsyncMock(
@@ -1023,7 +1023,7 @@ class TestA2ARunnableToolErrorHandling:
     @pytest.mark.asyncio
     async def test_as_tool_adapter_error(self, client_wrapper):
         """Tool execution raises ToolException on A2AAdapterError."""
-        from langchain_a2a_adapters.exceptions import A2AAdapterError
+        from a2a_langchain_adapters.exceptions import A2AAdapterError
 
         runnable = A2ARunnable(client_wrapper)
         tool = runnable.as_tool()

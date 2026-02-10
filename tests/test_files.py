@@ -89,7 +89,7 @@ class TestFileDownload:
         """Download file from URI."""
         file_content = b"downloaded content"
 
-        with patch("langchain_a2a_adapters.client_wrapper.httpx") as mock_httpx:
+        with patch("a2a_langchain_adapters.client_wrapper.httpx") as mock_httpx:
             mock_response = AsyncMock()
             mock_response.content = file_content
             mock_response.raise_for_status = Mock()

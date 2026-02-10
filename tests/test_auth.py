@@ -331,7 +331,7 @@ class TestRunnableWithAuth:
             mock_client.get_agent_card = AsyncMock(return_value=agent_card)
 
             with patch(
-                "langchain_a2a_adapters.runnable.A2AClientWrapper"
+                "a2a_langchain_adapters.runnable.A2AClientWrapper"
             ) as MockWrapper:
                 wrapper_instance = AsyncMock(spec=A2AClientWrapper)
                 wrapper_instance.agent_card = agent_card
@@ -367,14 +367,14 @@ class TestRunnableWithAuth:
             skills=[],
         )
 
-        with patch("langchain_a2a_adapters.runnable.A2AClientWrapper") as MockWrapper:
+        with patch("a2a_langchain_adapters.runnable.A2AClientWrapper") as MockWrapper:
             wrapper_instance = MagicMock(spec=A2AClientWrapper)
             wrapper_instance.agent_card = agent_card
             wrapper_instance.get_agent_card = AsyncMock(return_value=agent_card)
             wrapper_instance.requires_mTLS = MagicMock(return_value=True)
             MockWrapper.return_value = wrapper_instance
 
-            with patch("langchain_a2a_adapters.runnable.logger") as mock_logger:
+            with patch("a2a_langchain_adapters.runnable.logger") as mock_logger:
                 await A2ARunnable.from_agent_url(
                     "https://test:8443",
                     auth=auth,

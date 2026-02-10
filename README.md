@@ -2,13 +2,17 @@
 
 A production-ready Python package for integrating A2A protocol agents into LangChain/LangGraph. Enables stateful conversations, streaming, multi-turn context management, and seamless LLM tool binding with A2A agents.
 
-[![Build](https://github.com/janrauchfuss/a2a-langchain-adapters/actions/workflows/build_main.yml/badge.svg)](https://github.com/janrauchfuss/a2a-langchain-adapters/actions/workflows/build_main.yml)
+[![Build](https://github.com/janrauchfuss/langchain-a2a-adapters/actions/workflows/build_main.yml/badge.svg)](https://github.com/janrauchfuss/langchain-a2a-adapters/actions/workflows/build_main.yml)
 [![DeepSource](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters.svg/?label=code+coverage&show_trend=true&token=Uc5Zf3uf_7cuQrRWlftv5UrU)](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters/)
 [![DeepSource](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters.svg/?label=active+issues&show_trend=true&token=Uc5Zf3uf_7cuQrRWlftv5UrU)](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters/)
 [![DeepSource](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters.svg/?label=resolved+issues&show_trend=true&token=Uc5Zf3uf_7cuQrRWlftv5UrU)](https://app.deepsource.com/gh/janrauchfuss/a2a-langchain-adapters/)
 [![Ruff](https://img.shields.io/badge/ruff-enabled-success)](https://docs.astral.sh/ruff/)
 [![mypy](https://img.shields.io/badge/mypy-checked-success)](http://mypy-lang.org/)
 [![deptry](https://img.shields.io/badge/deptry-enabled-success)](https://github.com/fpgmaas/deptry)
+
+## 🎯 Why This Package?
+
+Integrating A2A protocol agents into LangChain/LangGraph required custom implementations each time. This package standardizes that pattern with a production-ready, well-tested solution. Currently in early release—feedback and contributions welcome.
 
 ## ✨ Features
 

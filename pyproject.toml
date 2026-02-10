@@ -82,9 +82,11 @@ commit_parser = "conventional"
 version_toml = ["pyproject.toml:project.version"]
 allow_zero_version = true
 tag_format = "v{version}"
-branches = ["main"]
 upload_to_vcs_release = true
 upload_to_pypi = false
+
+[[tool.semantic_release.branches]]
+name = "main"
 
 # Keep uv.lock in sync after version bump, then build dists
 # (This is the key uv-specific bit.)

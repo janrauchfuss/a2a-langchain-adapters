@@ -84,6 +84,7 @@ allow_zero_version = true
 tag_format = "v{version}"
 upload_to_vcs_release = true
 upload_to_pypi = false
+no_git_operations = true
 
 [tool.semantic_release.branches.main]
 
